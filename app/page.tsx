@@ -1,95 +1,177 @@
-'use client';
+"use client";
 
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import LoginForm from '@/components/auth/LoginForm';
-import WelcomePopup from '@/components/WelcomePopup';
-import { motion } from 'framer-motion';
-import { Shield, Users, LucideIcon } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
-export default function Home() {
+export default function LoginPage() {
+  const router = useRouter();
+  const { session } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session) {
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
-      <WelcomePopup />
+    <div className="flex min-h-screen w-full">
+      {/* Left Section: Branding/Stats - 60% */}
+      <div className="hidden lg:flex w-[60%] flex-col relative bg-primary overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-10 mix-blend-overlay" />
 
-      {/* Main Container - Padded to avoid Fixed Header/Footer overlap */}
-      <main className="flex-1 flex flex-col pt-16 pb-16 min-h-screen relative overflow-hidden">
+        <div className="relative z-10 flex flex-col h-full p-12 text-white justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center text-primary font-bold text-xl">S</div>
+            <h1 className="text-2xl font-bold tracking-tight">SchoolMS</h1>
+          </div>
 
-        {/* Split Layout Container */}
-        <div className="flex flex-1 w-full h-full relative z-10">
+          <div className="space-y-6 max-w-2xl">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-5xl font-bold leading-tight"
+            >
+              Manage your institution with precision and elegance.
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-lg text-blue-100/90"
+            >
+              The most advanced school management portal designed for efficiency, clarity, and growth.
+            </motion.p>
+          </div>
 
-          {/* Left Side: Branding (Hidden on Mobile) */}
-          <div className="hidden lg:flex w-[60%] flex-col justify-center p-20 bg-gray-50 relative">
-            {/* Watermark */}
-            <h1 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[15rem] font-bold text-gray-100 select-none z-0">
-              MS
-            </h1>
-
-            <div className="relative z-10 space-y-8 max-w-2xl">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold uppercase tracking-wider rounded-full mb-6">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                  Live Platform
-                </div>
-                <h1 className="text-6xl font-bold text-gray-900 leading-tight mb-6">
-                  Education <br />
-                  <span className="text-primary">Simplicity.</span>
-                </h1>
-                <p className="text-xl text-gray-500 leading-relaxed font-medium">
-                  Streamline your entire institution with SchoolMS.
-                  Designed for clarity, built for performance.
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-                className="grid grid-cols-2 gap-6"
-              >
-                <FeatureCard icon={Shield} title="Secure Data" text="Enterprise-grade encryption." />
-                <FeatureCard icon={Users} title="Role Access" text="Granular permissions control." />
-              </motion.div>
+          <div className="flex gap-8">
+            <div className="space-y-1">
+              <p className="text-3xl font-bold">500+</p>
+              <p className="text-sm text-blue-200">Schools Trusted</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-3xl font-bold">1M+</p>
+              <p className="text-sm text-blue-200">Students Active</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-3xl font-bold">99.9%</p>
+              <p className="text-sm text-blue-200">Uptime</p>
             </div>
           </div>
-
-          {/* Right Side: Auth (Full width on Mobile) */}
-          <div className="w-full lg:w-[40%] flex items-center justify-center p-8 bg-white lg:bg-transparent relative">
-            {/* Background Shape for visual interest on mobile */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full blur-3xl -z-10" />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="w-full max-w-md"
-            >
-              <LoginForm />
-            </motion.div>
-          </div>
-
         </div>
-      </main>
-
-      <Footer />
-    </div>
-  );
-}
-
-function FeatureCard({ icon: Icon, title, text }: { icon: LucideIcon, title: string, text: string }) {
-  return (
-    <div className="flex gap-4 p-4 rounded-xl bg-white/60 border border-gray-200/50 hover:bg-white transition-all shadow-sm group cursor-default">
-      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-        <Icon size={20} />
       </div>
-      <div>
-        <h4 className="font-bold text-gray-900">{title}</h4>
-        <p className="text-sm text-gray-500">{text}</p>
+
+      {/* Right Section: Login - 40% */}
+      <div className="flex-1 flex flex-col min-w-0 bg-background relative">
+        {/* Header - Mobile Logo */}
+        <header className="h-16 flex items-center px-6 lg:hidden border-b">
+          <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center text-white font-bold text-lg mr-2">S</div>
+          <span className="font-bold text-gray-900">SchoolMS</span>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 flex items-center justify-center p-6 sm:p-12">
+          <div className="w-full max-w-sm space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Welcome back</h1>
+              <p className="text-sm text-muted-foreground">
+                Enter your credentials to access your dashboard.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              {error && (
+                <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@school.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <a href="#" className="text-xs font-medium text-primary hover:underline">Forgot password?</a>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-11 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-0 h-full text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button type="submit" disabled={loading} className="w-full h-11 text-base shadow-lg hover:shadow-xl transition-all">
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                Sign In securely
+              </Button>
+            </form>
+          </div>
+        </main>
+
+        <footer className="h-16 flex items-center justify-center border-t text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            Powered by <strong className="font-semibold text-gray-900">Rigteq</strong>
+          </span>
+        </footer>
       </div>
     </div>
   );

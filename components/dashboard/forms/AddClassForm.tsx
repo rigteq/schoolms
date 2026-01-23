@@ -1,0 +1,112 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
+
+export default function AddClassForm({ onSuccess }: { onSuccess?: () => void }) {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [schools, setSchools] = useState<any[]>([]);
+
+    const [formData, setFormData] = useState({
+        school_id: "",
+        class_name: "",
+        academic_year: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1)
+    });
+
+    useEffect(() => {
+        async function fetchSchools() {
+            const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
+            if (data) setSchools(data);
+        }
+        fetchSchools();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.school_id) {
+            setError("Please select a school");
+            return;
+        }
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error: insertError } = await supabase
+                .from("classes")
+                .insert([formData]);
+
+            if (insertError) throw insertError;
+
+            setFormData({ school_id: "", class_name: "", academic_year: "" });
+            if (onSuccess) onSuccess();
+        } catch (err: any) {
+            setError(err.message || "Failed to add class");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+                <div className="text-red-500 text-sm p-2 bg-red-50 rounded border border-red-100">
+                    {error}
+                </div>
+            )}
+
+            <div className="space-y-2">
+                <Label htmlFor="school">School</Label>
+                <Select
+                    onValueChange={(val) => setFormData({ ...formData, school_id: val })}
+                    value={formData.school_id}
+                >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a school" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {schools.map(school => (
+                            <SelectItem key={school.id} value={school.id}>
+                                {school.school_name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="class_name">Class Name</Label>
+                <Input
+                    id="class_name"
+                    value={formData.class_name}
+                    onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
+                    required
+                    placeholder="e.g. Grade 10-A"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="academic_year">Academic Year</Label>
+                <Input
+                    id="academic_year"
+                    value={formData.academic_year}
+                    onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
+                    required
+                    placeholder="e.g. 2025-2026"
+                />
+            </div>
+
+            <div className="flex justify-end pt-4">
+                <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Class
+                </Button>
+            </div>
+        </form>
+    );
+}
