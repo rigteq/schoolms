@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School, BookOpen } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function StudentDetailPagePage() {
@@ -15,9 +15,14 @@ export default function StudentDetailPagePage() {
     const [enrolledClass, setEnrolledClass] = useState<any>(null);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => setMounted(true), []);
 
     useEffect(() => {
         async function fetchStudentDetails() {
+            if (!id) return;
+            setLoading(true);
             try {
                 const { data, error } = await supabase
                     .from("profiles")
@@ -31,7 +36,6 @@ export default function StudentDetailPagePage() {
                 if (error) throw error;
                 setStudent(data);
 
-                // Fetch enrolled class
                 const { data: enrollment } = await supabase
                     .from("students_data")
                     .select(`
@@ -39,17 +43,16 @@ export default function StudentDetailPagePage() {
              classes (id, class_name, academic_year)
            `)
                     .eq("student_id", id)
-                    .maybeSingle(); // Student usually in one class per year, but schema allows many. Assuming single for current year view.
+                    .maybeSingle();
 
                 if (enrollment?.classes) {
                     setEnrolledClass(enrollment.classes);
 
-                    // Fetch teachers for this class
                     const { data: teachersData } = await supabase
                         .from("teachers_data")
                         .select(`
                    subject_name,
-                   profiles (id, full_name, email)
+                   profiles:teacher_id (id, full_name, email)
                 `)
                         .eq("class_id", enrollment.classes.id);
 
@@ -63,7 +66,7 @@ export default function StudentDetailPagePage() {
             }
         }
 
-        if (id) fetchStudentDetails();
+        fetchStudentDetails();
     }, [id]);
 
     const handleDelete = async () => {
@@ -72,22 +75,22 @@ export default function StudentDetailPagePage() {
         router.push("/dashboard/students");
     }
 
+    if (!mounted) return null;
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (!student) return <div>Student not found</div>;
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+            <Button variant="ghost" onClick={() => router.push("/dashboard/students")} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Students
             </Button>
 
-            {/* Profile Header */}
             <Card>
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                         <div className="flex gap-4">
                             <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-3xl font-bold">
-                                {student.full_name?.charAt(0)}
+                                {student.full_name?.charAt(0) || "S"}
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold">{student.full_name}</h1>
@@ -116,7 +119,6 @@ export default function StudentDetailPagePage() {
             </Card>
 
             <div className="grid gap-6 md:grid-cols-2">
-                {/* Class Info */}
                 <div className="space-y-4">
                     <h2 className="text-xl font-semibold">Current Class</h2>
                     {enrolledClass ? (
@@ -135,7 +137,6 @@ export default function StudentDetailPagePage() {
                     )}
                 </div>
 
-                {/* Teachers Info */}
                 <div className="space-y-4">
                     <h2 className="text-xl font-semibold">Teachers</h2>
                     <Card>
