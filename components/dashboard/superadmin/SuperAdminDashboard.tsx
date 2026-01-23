@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import AddSchoolForm from "@/components/dashboard/forms/AddSchoolForm";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
 import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
+import AddAdminForm from "@/components/dashboard/forms/AddAdminForm";
 
 export default function SuperAdminDashboard() {
     const [stats, setStats] = useState({
@@ -111,6 +112,13 @@ export default function SuperAdminDashboard() {
                         content={<AddSchoolForm onSuccess={() => window.location.reload()} />}
                     />
                     <ActionCard
+                        title="Add Admin"
+                        icon={Users}
+                        description="Create a school administrator"
+                        trigger={<Button variant="outline" className="w-full">Create Admin</Button>}
+                        content={<AddAdminForm onSuccess={() => window.location.reload()} />}
+                    />
+                    <ActionCard
                         title="Add Class"
                         icon={BookOpen}
                         description="Create a new class for a school"
@@ -124,6 +132,9 @@ export default function SuperAdminDashboard() {
                         trigger={<Button variant="outline" className="w-full">Onboard Teacher</Button>}
                         content={<AddProfileForm roleName="Teacher" onSuccess={() => window.location.reload()} />}
                     />
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-4">
+                    {/* Row 2 Actions if needed */}
                     <ActionCard
                         title="Add Student"
                         icon={Users}
