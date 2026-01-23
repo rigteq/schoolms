@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, Bell, ChevronDown, User, Layout, Settings as SettingsIcon } from "lucide-react";
+import { Menu, Bell, ChevronDown, User, Layout, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -13,16 +13,19 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
     onMenuClick: () => void;
+    onToggleSidebar: () => void;
+    isCollapsed: boolean;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
-    const { role } = useAuth();
+export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProps) {
+    const { role, signOut } = useAuth();
 
     return (
-        <header className="h-16 border-b bg-white/80 backdrop-blur top-0 sticky z-30 flex items-center justify-between px-6">
+        <header className="h-16 bg-white/80 backdrop-blur top-0 sticky z-30 flex items-center justify-between px-6 shadow-sm">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}
@@ -30,46 +33,46 @@ export function Header({ onMenuClick }: HeaderProps) {
                 >
                     <Menu className="h-5 w-5" />
                 </button>
-                {/* Breadcrumb or Title could go here */}
-                <h1 className="text-lg font-semibold text-gray-800 hidden md:block">
-                    Overview
-                </h1>
+
+                <button
+                    onClick={onToggleSidebar}
+                    className="p-2 rounded-md hover:bg-gray-100 hidden lg:block text-gray-600"
+                >
+                    {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                </button>
+
+                <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center text-white font-bold text-lg">S</div>
+                    <span className="font-bold text-xl tracking-tight text-gray-900 hidden sm:block">SchoolMS</span>
+                </div>
             </div>
 
             <div className="flex items-center gap-4">
-                {role === "Superadmin" && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
-                                Manage <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>Administration</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                                <Link href="/dashboard/schools">All Schools</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href="/dashboard/teachers">All Teachers</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href="/dashboard/students">All Students</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href="/dashboard/classes">All Classes</Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
-
                 <Button variant="ghost" size="icon" className="text-gray-500">
                     <Bell className="h-5 w-5" />
                 </Button>
 
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-gray-50">
-                    {role ? role.charAt(0) : 'U'}
-                </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-gray-50 outline-none hover:ring-blue-100 transition-all">
+                            {role ? role.charAt(0) : 'U'}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-100 shadow-xl">
+                        <DropdownMenuItem>
+                            <User className="mr-2 h-4 w-4" />
+                            <span>Profile</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                            <SettingsIcon className="mr-2 h-4 w-4" />
+                            <span>Settings</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                            <span>Log out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </header>
     );

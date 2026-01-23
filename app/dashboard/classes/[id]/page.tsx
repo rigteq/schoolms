@@ -16,9 +16,14 @@ export default function ClassDetailPage() {
     const [students, setStudents] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => setMounted(true), []);
 
     useEffect(() => {
         async function fetchClassDetails() {
+            if (!id) return;
+            setLoading(true);
             try {
                 const { data, error } = await supabase
                     .from("classes")
@@ -32,7 +37,6 @@ export default function ClassDetailPage() {
                 if (error) throw error;
                 setClassData(data);
 
-                // Fetch Students
                 const { data: studentsEnrollments } = await supabase
                     .from("students_data")
                     .select(`
@@ -43,7 +47,6 @@ export default function ClassDetailPage() {
 
                 setStudents(studentsEnrollments?.map((s: any) => s.profiles) || []);
 
-                // Fetch Teachers
                 const { data: teachersAssignments } = await supabase
                     .from("teachers_data")
                     .select(`
@@ -62,7 +65,7 @@ export default function ClassDetailPage() {
             }
         }
 
-        if (id) fetchClassDetails();
+        fetchClassDetails();
     }, [id]);
 
     const handleDelete = async () => {
@@ -71,16 +74,16 @@ export default function ClassDetailPage() {
         router.push("/dashboard/classes");
     }
 
+    if (!mounted) return null;
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (!classData) return <div>Class not found</div>;
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+            <Button variant="ghost" onClick={() => router.push("/dashboard/classes")} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Classes
             </Button>
 
-            {/* Header Info */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold">{classData.class_name}</h1>
@@ -117,50 +120,52 @@ export default function ClassDetailPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="students" className="w-full">
-                <TabsList>
-                    <TabsTrigger value="students">Students</TabsTrigger>
-                    <TabsTrigger value="teachers">Teachers</TabsTrigger>
-                </TabsList>
-                <TabsContent value="students" className="mt-4">
-                    <Card>
-                        <CardContent className="p-0">
-                            <div className="p-4 border-b font-medium">Class Roster</div>
-                            <div className="divide-y">
-                                {students.map(s => (
-                                    <div key={s.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/students/${s.id}`)}>
-                                        <div>
-                                            <p className="font-medium">{s.full_name}</p>
-                                            <p className="text-sm text-muted-foreground">{s.email}</p>
+            <div className="bg-transparent">
+                <Tabs defaultValue="students" className="w-full">
+                    <TabsList className="bg-white shadow-sm rounded-lg p-1">
+                        <TabsTrigger value="students">Students</TabsTrigger>
+                        <TabsTrigger value="teachers">Teachers</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="students" className="mt-4">
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="p-4 border-b font-medium bg-gray-50/50">Class Roster</div>
+                                <div className="divide-y">
+                                    {students.map(s => (
+                                        <div key={s.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/students/${s.id}`)}>
+                                            <div>
+                                                <p className="font-medium">{s.full_name}</p>
+                                                <p className="text-sm text-muted-foreground">{s.email}</p>
+                                            </div>
+                                            <Badge variant="outline">Student</Badge>
                                         </div>
-                                        <Badge variant="outline">Student</Badge>
-                                    </div>
-                                ))}
-                                {students.length === 0 && <div className="p-4 text-center text-muted-foreground">No students enrolled.</div>}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="teachers" className="mt-4">
-                    <Card>
-                        <CardContent className="p-0">
-                            <div className="p-4 border-b font-medium">Teachers List</div>
-                            <div className="divide-y">
-                                {teachers.map(t => (
-                                    <div key={t.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/teachers/${t.id}`)}>
-                                        <div>
-                                            <p className="font-medium">{t.full_name}</p>
-                                            <p className="text-sm text-muted-foreground">{t.email}</p>
+                                    ))}
+                                    {students.length === 0 && <div className="p-4 text-center text-muted-foreground">No students enrolled.</div>}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="teachers" className="mt-4">
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="p-4 border-b font-medium bg-gray-50/50">Teachers List</div>
+                                <div className="divide-y">
+                                    {teachers.map(t => (
+                                        <div key={t.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/teachers/${t.id}`)}>
+                                            <div>
+                                                <p className="font-medium">{t.full_name}</p>
+                                                <p className="text-sm text-muted-foreground">{t.email}</p>
+                                            </div>
+                                            <Badge variant="secondary">{t.subject || "Teacher"}</Badge>
                                         </div>
-                                        <Badge variant="secondary">{t.subject || "Teacher"}</Badge>
-                                    </div>
-                                ))}
-                                {teachers.length === 0 && <div className="p-4 text-center text-muted-foreground">No teachers assigned.</div>}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+                                    ))}
+                                    {teachers.length === 0 && <div className="p-4 text-center text-muted-foreground">No teachers assigned.</div>}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     );
 }

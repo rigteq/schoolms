@@ -14,9 +14,14 @@ export default function TeacherDetailPage() {
     const [teacher, setTeacher] = useState<any>(null);
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => setMounted(true), []);
 
     useEffect(() => {
         async function fetchTeacherDetails() {
+            if (!id) return;
+            setLoading(true);
             try {
                 const { data, error } = await supabase
                     .from("profiles")
@@ -30,11 +35,10 @@ export default function TeacherDetailPage() {
                 if (error) throw error;
                 setTeacher(data);
 
-                // Fetch classes taught by this teacher
                 const { data: classesData } = await supabase
                     .from("teachers_data")
                     .select(`
-             *,
+             subject_name,
              classes (id, class_name, academic_year)
            `)
                     .eq("teacher_id", id);
@@ -48,7 +52,7 @@ export default function TeacherDetailPage() {
             }
         }
 
-        if (id) fetchTeacherDetails();
+        fetchTeacherDetails();
     }, [id]);
 
     const handleDelete = async () => {
@@ -57,22 +61,22 @@ export default function TeacherDetailPage() {
         router.push("/dashboard/teachers");
     }
 
+    if (!mounted) return null;
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     if (!teacher) return <div>Teacher not found</div>;
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" onClick={() => router.back()} className="mb-4">
+            <Button variant="ghost" onClick={() => router.push("/dashboard/teachers")} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Teachers
             </Button>
 
-            {/* Profile Header */}
             <Card>
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                         <div className="flex gap-4">
                             <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-3xl font-bold">
-                                {teacher.full_name?.charAt(0)}
+                                {teacher.full_name?.charAt(0) || "T"}
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold">{teacher.full_name}</h1>
@@ -100,7 +104,6 @@ export default function TeacherDetailPage() {
                 </CardContent>
             </Card>
 
-            {/* Classes Taught */}
             <h2 className="text-xl font-semibold mt-8 mb-4">Classes Taught</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {classes.map((cls) => (
