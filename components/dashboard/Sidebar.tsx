@@ -10,11 +10,8 @@ import {
     GraduationCap,
     Users,
     BookOpen,
-    Settings,
-    LogOut,
     X
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
     isOpen: boolean;

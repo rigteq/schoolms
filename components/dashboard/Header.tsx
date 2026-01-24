@@ -1,19 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, Bell, ChevronDown, User, Layout, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
+import { Menu, Bell, User, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 interface HeaderProps {
     onMenuClick: () => void;

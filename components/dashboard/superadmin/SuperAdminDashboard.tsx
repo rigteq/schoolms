@@ -1,53 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, School, Users, GraduationCap, BookOpen, ExternalLink } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { School, Users, GraduationCap, BookOpen, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import AddSchoolForm from "@/components/dashboard/forms/AddSchoolForm";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
 import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
 import AddAdminForm from "@/components/dashboard/forms/AddAdminForm";
+import { useStats } from "@/lib/hooks/useData";
 
 export default function SuperAdminDashboard() {
-    const [stats, setStats] = useState({
-        schools: 0,
-        students: 0,
-        teachers: 0,
-        classes: 0,
-    });
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function fetchStats() {
-            try {
-                setLoading(true);
-                const { count: schoolsCount } = await supabase.from("schools").select("*", { count: 'exact', head: true });
-
-                const { data: roles } = await supabase.from("roles").select("id, role_name");
-                const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
-                const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
-
-                const { count: studentsCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", studentRoleId || "");
-                const { count: teachersCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", teacherRoleId || "");
-                const { count: classesCount } = await supabase.from("classes").select("*", { count: 'exact', head: true });
-
-                setStats({
-                    schools: schoolsCount || 0,
-                    students: studentsCount || 0,
-                    teachers: teachersCount || 0,
-                    classes: classesCount || 0,
-                });
-            } catch (error) {
-                console.error("Error fetching stats:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchStats();
-    }, []);
+    const { stats, loading, mutate } = useStats();
 
     return (
         <div className="space-y-8">
@@ -109,28 +73,28 @@ export default function SuperAdminDashboard() {
                         icon={School}
                         description="Register a new institution"
                         trigger={<Button className="w-full">Create School</Button>}
-                        content={<AddSchoolForm onSuccess={() => window.location.reload()} />}
+                        content={<AddSchoolForm onSuccess={() => mutate()} />}
                     />
                     <ActionCard
                         title="Add Admin"
                         icon={Users}
                         description="Create a school administrator"
-                        trigger={<Button variant="outline" className="w-full">Create Admin</Button>}
-                        content={<AddAdminForm onSuccess={() => window.location.reload()} />}
+                        trigger={<Button className="w-full">Create Admin</Button>}
+                        content={<AddAdminForm onSuccess={() => mutate()} />}
                     />
                     <ActionCard
                         title="Add Class"
                         icon={BookOpen}
                         description="Create a new class for a school"
-                        trigger={<Button variant="outline" className="w-full">Create Class</Button>}
-                        content={<AddClassForm onSuccess={() => window.location.reload()} />}
+                        trigger={<Button className="w-full">Create Class</Button>}
+                        content={<AddClassForm onSuccess={() => mutate()} />}
                     />
                     <ActionCard
                         title="Add Teacher"
                         icon={GraduationCap}
                         description="Onboard a new teacher"
-                        trigger={<Button variant="outline" className="w-full">Onboard Teacher</Button>}
-                        content={<AddProfileForm roleName="Teacher" onSuccess={() => window.location.reload()} />}
+                        trigger={<Button className="w-full">Onboard Teacher</Button>}
+                        content={<AddProfileForm roleName="Teacher" onSuccess={() => mutate()} />}
                     />
                 </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-4">
@@ -139,8 +103,8 @@ export default function SuperAdminDashboard() {
                         title="Add Student"
                         icon={Users}
                         description="Enroll a new student"
-                        trigger={<Button variant="outline" className="w-full">Enroll Student</Button>}
-                        content={<AddProfileForm roleName="Student" onSuccess={() => window.location.reload()} />}
+                        trigger={<Button className="w-full">Enroll Student</Button>}
+                        content={<AddProfileForm roleName="Student" onSuccess={() => mutate()} />}
                     />
                 </div>
             </div>
@@ -178,7 +142,13 @@ function StatsCard({ title, value, icon: Icon, description, color, bg }: any) {
     );
 }
 
-function ActionCard({ title, icon: Icon, description, trigger, content }: any) {
+function ActionCard({ title, icon: Icon, description, trigger, content }: {
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    description: string;
+    trigger: React.ReactNode;
+    content: React.ReactNode;
+}) {
     return (
         <Card className="flex flex-col justify-between">
             <CardHeader>

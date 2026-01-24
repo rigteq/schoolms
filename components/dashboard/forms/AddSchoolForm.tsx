@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +37,8 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
 
             setFormData({ school_name: "", address: "", phone: "", email: "" });
             if (onSuccess) onSuccess();
-        } catch (err: any) {
-            setError(err.message || "Failed to add school");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to add school");
         } finally {
             setLoading(false);
         }

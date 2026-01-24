@@ -138,3 +138,38 @@ export function useClasses({ page, search, itemsPerPage = 10 }: UsePaginationOpt
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, { keepPreviousData: true, revalidateOnFocus: false });
     return { classes: data?.data || [], totalCount: data?.count || 0, loading: isLoading, error, mutate };
 }
+
+export function useStats() {
+    const key = ['stats'];
+
+    const fetcher = async () => {
+        const { count: schoolsCount } = await supabase.from("schools").select("*", { count: 'exact', head: true });
+
+        const { data: roles } = await supabase.from("roles").select("id, role_name");
+        const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
+        const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
+
+        const { count: studentsCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", studentRoleId || "");
+        const { count: teachersCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", teacherRoleId || "");
+        const { count: classesCount } = await supabase.from("classes").select("*", { count: 'exact', head: true });
+
+        return {
+            schools: schoolsCount || 0,
+            students: studentsCount || 0,
+            teachers: teachersCount || 0,
+            classes: classesCount || 0,
+        };
+    };
+
+    const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
+        keepPreviousData: true,
+        revalidateOnFocus: false,
+    });
+
+    return {
+        stats: data || { schools: 0, students: 0, teachers: 0, classes: 0 },
+        loading: isLoading,
+        error,
+        mutate
+    };
+}

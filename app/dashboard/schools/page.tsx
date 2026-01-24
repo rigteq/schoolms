@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,40 +18,45 @@ const formatDate = (dateString: string | null) => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+interface PaginationProps {
+    page: number;
+    totalPages: number;
+    totalCount: number;
+    onPageChange: (page: number) => void;
+}
+
+const Pagination = ({ page, totalPages, totalCount, onPageChange }: PaginationProps) => (
+    <div className="flex items-center justify-between px-2">
+        <div className="text-sm text-muted-foreground">
+            Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, totalCount)} of {totalCount} results
+        </div>
+        <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1}>
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-sm font-medium">Page {page} of {totalPages || 1}</div>
+            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page === totalPages || totalPages === 0}>
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+        </div>
+    </div>
+);
+
 export default function SchoolsPage() {
     const router = useRouter();
     const [search, setSearch] = useState("");
-    // Debounce search ideally, but for now direct state is fine as SWR handles it okay, though it triggers requests. 
-    // "Clean code" suggests debouncing, but sticking to requirements first.
     const [page, setPage] = useState(1);
     const [mounted, setMounted] = useState(false);
 
     const { schools, totalCount, loading, mutate } = useSchools({ page, search });
 
-    useEffect(() => setMounted(true), []);
+    useLayoutEffect(() => setMounted(true), []);
 
     const handleRowClick = (id: string) => {
         router.push(`/dashboard/schools/${id}`);
     };
 
     const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-
-    const Pagination = () => (
-        <div className="flex items-center justify-between px-2">
-            <div className="text-sm text-muted-foreground">
-                Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, totalCount)} of {totalCount} results
-            </div>
-            <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="text-sm font-medium">Page {page} of {totalPages || 1}</div>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0}>
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
-        </div>
-    );
 
     return (
         <div className="space-y-6">
@@ -124,7 +128,7 @@ export default function SchoolsPage() {
                             </TableBody>
                         </Table>
                     )}
-                    <div className="mt-4"><Pagination /></div>
+                    <div className="mt-4"><Pagination page={page} totalPages={totalPages} totalCount={totalCount} onPageChange={setPage} /></div>
                 </CardContent>
             </Card>
         </div>
