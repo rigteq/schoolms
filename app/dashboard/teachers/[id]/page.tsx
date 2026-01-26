@@ -41,7 +41,7 @@ export default function TeacherDetailPage() {
              subject_name,
              classes (id, class_name, academic_year)
            `)
-                    .eq("teacher_id", id);
+                    .eq("id", id);
 
                 setClasses(classesData?.map((item: any) => ({ ...item.classes, subject_name: item.subject_name })) || []);
 

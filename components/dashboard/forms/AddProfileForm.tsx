@@ -14,6 +14,8 @@ interface AddProfileFormProps {
     defaultSchoolId?: string;
 }
 
+import { createUserWithRole } from "@/app/actions/user-actions";
+
 export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }: AddProfileFormProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -23,14 +25,14 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         school_id: defaultSchoolId || "",
         full_name: "",
         email: "",
+        password: "",
         phone: "",
         current_address: "",
-        dob: "" // Date of Birth
+        dob: ""
     });
 
     useEffect(() => {
         async function fetchSchools() {
-            // If defaultSchoolId is provided, we might not need to fetch all, but let's do it for generic use
             const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
             if (data) setSchools(data);
         }
@@ -41,46 +43,32 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.school_id && !defaultSchoolId) {
+        const schoolIdToUse = defaultSchoolId || formData.school_id;
+
+        if (!schoolIdToUse) {
             setError("Please select a school");
             return;
         }
+
+        if (!formData.password || formData.password.length < 6) {
+            setError("Password must be at least 6 characters");
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
         try {
-            // Get Role ID
-            const { data: roleData, error: roleError } = await supabase
-                .from("roles")
-                .select("id")
-                .eq("role_name", roleName)
-                .single();
-
-            if (roleError || !roleData) throw new Error("Invalid Role Configuration");
-
-            const profileData = {
+            const result = await createUserWithRole({
                 ...formData,
-                school_id: defaultSchoolId || formData.school_id,
-                role_id: roleData.id
-            };
+                school_id: schoolIdToUse,
+                role_name: roleName,
+                address: formData.current_address // mapping form field to action param
+            });
 
-            const { error: insertError } = await supabase
-                .from("profiles")
-                .insert([profileData]);
+            if (!result.success) throw new Error(result.error);
 
-            if (insertError) throw insertError;
-
-            // Optionally create auth user?
-            // The prompt says: "Write SQL to create an admin user in Supabase...".
-            // But for "Add Student", usually we create a profile first, then they claim it?
-            // Or we create Auth User here?
-            // "Auth Logic: Implement robust supabase.auth.signInWithPassword"
-            // Usually, creating a profile implies creating a user.
-            // But for simplicity in this step (just adding to DB), I'll stick to 'profiles' table insertion.
-            // Real-world: Use Admin API to create user or invite.
-            // I'll stick to just Profile creation as per prompt "Add Student Forms" (usually implies data entry).
-
-            setFormData({ school_id: defaultSchoolId || "", full_name: "", email: "", phone: "", current_address: "", dob: "" });
+            setFormData({ school_id: defaultSchoolId || "", full_name: "", email: "", password: "", phone: "", current_address: "", dob: "" });
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || `Failed to add ${roleName}`);
@@ -107,7 +95,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         <SelectTrigger>
                             <SelectValue placeholder="Select a school" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white">
                             {schools.map(school => (
                                 <SelectItem key={school.id} value={school.id}>
                                     {school.school_name}
@@ -142,6 +130,20 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                     />
                 </div>
                 <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        placeholder="******"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
                     <Input
                         id="phone"
@@ -150,16 +152,15 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         placeholder="+1 234..."
                     />
                 </div>
-            </div>
-
-            <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth</Label>
-                <Input
-                    id="dob"
-                    type="date"
-                    value={formData.dob}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                />
+                <div className="space-y-2">
+                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Input
+                        id="dob"
+                        type="date"
+                        value={formData.dob}
+                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    />
+                </div>
             </div>
 
             <div className="space-y-2">

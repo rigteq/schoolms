@@ -47,7 +47,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
             {/* Sidebar Container */}
             <aside
                 className={cn(
-                    "fixed top-0 left-0 z-50 h-screen bg-white shadow-xl transition-all duration-300 transform lg:static overflow-hidden",
+                    "fixed top-0 left-0 z-50 h-screen bg-white shadow-xl transition-all duration-300 transform lg:sticky border-r border-gray-200 overflow-y-auto",
                     isOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
                     isCollapsed ? "lg:w-0 lg:p-0 border-none" : "lg:w-64"
                 )}

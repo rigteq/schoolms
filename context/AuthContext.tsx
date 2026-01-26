@@ -41,27 +41,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         let mounted = true;
 
+        const fetchProfile = async (currentUser: User) => {
+            if (!currentUser?.email) return;
+
+            // Avoid re-fetching if we already have the profile for this user
+            if (profile?.email === currentUser.email) return;
+
+            try {
+                // Only set loading if we don't have a profile yet (initial load)
+                if (!profile) setIsLoading(true);
+
+                const { data: profileData } = await supabase
+                    .from("profiles")
+                    .select(`*, roles(role_name)`)
+                    .eq("email", currentUser.email)
+                    .single();
+
+                if (mounted && profileData) {
+                    setProfile(profileData);
+                    setRole(profileData.roles?.role_name as Role);
+                }
+            } catch (error) {
+                console.error("Profile fetch error:", error);
+            } finally {
+                if (mounted) setIsLoading(false);
+            }
+        };
+
         const initializeAuth = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                setSession(session);
-                setUser(session?.user ?? null);
 
-                if (session?.user?.email) {
-                    const { data: profileData } = await supabase
-                        .from("profiles")
-                        .select(`*, roles(role_name)`)
-                        .eq("email", session.user.email)
-                        .single();
+                if (mounted) {
+                    setSession(session);
+                    setUser(session?.user ?? null);
+                }
 
-                    if (profileData) {
-                        setProfile(profileData);
-                        setRole(profileData.roles?.role_name as Role);
-                    }
+                if (session?.user) {
+                    await fetchProfile(session.user);
+                } else {
+                    if (mounted) setIsLoading(false);
                 }
             } catch (error) {
                 console.error("Auth initialization error:", error);
-            } finally {
                 if (mounted) setIsLoading(false);
             }
         };
@@ -69,25 +91,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initializeAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+            if (!mounted) return;
 
-            if (session?.user?.email) {
-                setIsLoading(true);
-                const { data: profileData } = await supabase
-                    .from("profiles")
-                    .select(`*, roles(role_name)`)
-                    .eq("email", session.user.email)
-                    .single();
+            const currentUser = session?.user ?? null;
 
-                if (profileData) {
-                    setProfile(profileData);
-                    setRole(profileData.roles?.role_name as Role);
+            // Only update state if session actually changed meaningfully
+            if (session?.access_token !== session?.access_token) {
+                setSession(session);
+                setUser(currentUser);
+            } else {
+                // Even if token didn't change much, ensure we have user
+                setSession(session);
+                setUser(currentUser);
+            }
+
+            if (currentUser?.email) {
+                // Only fetch if we are switching users or don't have a profile
+                if (profile?.email !== currentUser.email) {
+                    await fetchProfile(currentUser);
                 } else {
-                    // Handle case where profile doesn't exist yet?
-                    setRole(null);
+                    setIsLoading(false);
                 }
-                setIsLoading(false);
             } else {
                 setProfile(null);
                 setRole(null);

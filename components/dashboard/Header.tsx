@@ -54,8 +54,8 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
                             {role ? role.charAt(0) : 'U'}
                         </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-100 shadow-xl">
-                        <DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="w-56 bg-white z-50 border border-gray-100 shadow-xl">
+                        <DropdownMenuItem className="focus:bg-gray-50 cursor-pointer">
                             <User className="mr-2 h-4 w-4" />
                             <span>Profile</span>
                         </DropdownMenuItem>
