@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect } from "react";
 
+import { createUserWithRole } from "@/app/actions/user-actions";
+
 export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -18,8 +20,8 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         school_id: "",
         full_name: "",
         email: "",
+        password: "",
         phone: "",
-        // Admins don't always need address/dob in simple form but we can add
     });
 
     useEffect(() => {
@@ -36,31 +38,26 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             setError("Please select a school");
             return;
         }
+        if (!formData.password || formData.password.length < 6) {
+            setError("Password must be at least 6 characters");
+            return;
+        }
 
         setLoading(true);
         setError(null);
 
         try {
-            const { data: roleData, error: roleError } = await supabase
-                .from("roles")
-                .select("id")
-                .eq("role_name", "Admin")
-                .single();
+            const result = await createUserWithRole({
+                ...formData,
+                role_name: "Admin"
+            });
 
-            if (roleError) throw new Error("Admin role not found");
+            if (!result.success) throw new Error(result.error);
 
-            const { error: insertError } = await supabase
-                .from("profiles")
-                .insert([{
-                    ...formData,
-                    role_id: roleData.id
-                }]);
-
-            if (insertError) throw insertError;
-
-            setFormData({ school_id: "", full_name: "", email: "", phone: "" });
+            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "" });
             if (onSuccess) onSuccess();
         } catch (err: any) {
+            console.error(err);
             setError(err.message || "Failed to add admin");
         } finally {
             setLoading(false);
@@ -114,6 +111,18 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
                     placeholder="admin@school.com"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    placeholder="******"
                 />
             </div>
 

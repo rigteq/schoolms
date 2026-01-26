@@ -42,7 +42,7 @@ export default function StudentDetailPagePage() {
              *,
              classes (id, class_name, academic_year)
            `)
-                    .eq("student_id", id)
+                    .eq("id", id)
                     .maybeSingle();
 
                 if (enrollment?.classes) {
