@@ -95,15 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const currentUser = session?.user ?? null;
 
-            // Only update state if session actually changed meaningfully
-            if (session?.access_token !== session?.access_token) {
-                setSession(session);
-                setUser(currentUser);
-            } else {
-                // Even if token didn't change much, ensure we have user
-                setSession(session);
-                setUser(currentUser);
-            }
+            // Update session and user whenever auth state changes
+            setSession(session);
+            setUser(currentUser);
 
             if (currentUser?.email) {
                 // Only fetch if we are switching users or don't have a profile
