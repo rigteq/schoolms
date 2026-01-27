@@ -7,18 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { createUserWithRole } from "@/app/actions/user-actions";
+import { getAgeValidationError, getMaxDate, getMinDate } from "@/lib/utils/validation";
 
 interface AddProfileFormProps {
-    roleName: "Teacher" | "Student";  // Restrict to these for now
+    roleName: "Teacher" | "Student";
     onSuccess?: () => void;
     defaultSchoolId?: string;
 }
 
-import { createUserWithRole } from "@/app/actions/user-actions";
-
 export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }: AddProfileFormProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [dobError, setDobError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
@@ -41,6 +42,14 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         }
     }, [defaultSchoolId]);
 
+    const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const dob = e.target.value;
+        setFormData({ ...formData, dob });
+        
+        const ageError = getAgeValidationError(dob, 4, 120);
+        setDobError(ageError);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const schoolIdToUse = defaultSchoolId || formData.school_id;
@@ -55,6 +64,16 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             return;
         }
 
+        if (!formData.dob) {
+            setError("Date of birth is required");
+            return;
+        }
+
+        if (dobError) {
+            setError(dobError);
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -63,12 +82,13 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 ...formData,
                 school_id: schoolIdToUse,
                 role_name: roleName,
-                address: formData.current_address // mapping form field to action param
+                address: formData.current_address
             });
 
             if (!result.success) throw new Error(result.error);
 
             setFormData({ school_id: defaultSchoolId || "", full_name: "", email: "", password: "", phone: "", current_address: "", dob: "" });
+            setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || `Failed to add ${roleName}`);
@@ -158,8 +178,16 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         id="dob"
                         type="date"
                         value={formData.dob}
-                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                        onChange={handleDobChange}
+                        required
+                        min={getMinDate(120)}
+                        max={getMaxDate(4)}
                     />
+                    {dobError && (
+                        <div className="text-red-500 text-sm">
+                            {dobError}
+                        </div>
+                    )}
                 </div>
             </div>
 

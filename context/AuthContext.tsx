@@ -15,6 +15,7 @@ interface AuthContextType {
         email: string;
         full_name: string;
         role_id: string;
+        school_id: string;
         roles: { role_name: string };
     } | null;
     role: Role;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: string;
         full_name: string;
         role_id: string;
+        school_id: string;
         roles: { role_name: string };
     } | null>(null);
     const [role, setRole] = useState<Role>(null);

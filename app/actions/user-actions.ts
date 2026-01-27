@@ -11,7 +11,6 @@ interface CreateUserParams {
     phone?: string;
     address?: string;
     dob?: string;
-    // Specific fields
     class_id?: string;
     subject_name?: string;
 }
@@ -31,7 +30,6 @@ export async function createUserWithRole(params: CreateUserParams) {
             subject_name,
         } = params;
 
-        // 1. Get Role ID
         const { data: roleData, error: roleError } = await supabaseAdmin
             .from("roles")
             .select("id")
@@ -43,28 +41,19 @@ export async function createUserWithRole(params: CreateUserParams) {
         }
         const role_id = roleData.id;
 
-        // 2. Create Auth User
-        // Use provided password or generate a default one (Task says "Password field should be there")
         const tempPassword = password || "tempPassword123";
 
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: {
-                full_name,
-                school_id,
-                role: role_name,
-            },
-            app_metadata: {
-                role: role_name, // important for RLS if using auth.jwt() -> app_metadata.role
-            },
+            user_metadata: { full_name, school_id, role: role_name },
+            app_metadata: { role: role_name },
         });
 
         if (authError) throw authError;
         const user_id = authData.user.id;
 
-        // 3. Insert into Profiles
         const { error: profileError } = await supabaseAdmin.from("profiles").insert({
             id: user_id,
             role_id,
@@ -73,20 +62,14 @@ export async function createUserWithRole(params: CreateUserParams) {
             email,
             phone,
             current_address: address,
-            dob: dob ? dob : null,
+            dob: dob || null,
         });
 
         if (profileError) {
-            // Cleanup auth user if profile creation fails? 
-            // Ideally yes, but skipping complex rollback for this snippet
             throw new Error(`Profile creation failed: ${profileError.message}`);
         }
 
-        // 4. Insert into Role Specific Tables
         if (role_name === "Teacher") {
-            // Only insert if checks pass (though generic teacher might not have a class yet?)
-            // Schema allows nulls? 
-            // teachers_data: id PK Ref profiles, class_id REF classes, subject_name.
             const { error: teacherError } = await supabaseAdmin.from("teachers_data").insert({
                 id: user_id,
                 class_id: class_id || null,

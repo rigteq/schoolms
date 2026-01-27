@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
-import { useClasses } from "@/lib/hooks/useData";
+import { useClasses, useAdminClasses } from "@/lib/hooks/useData";
+import { useAuth } from "@/context/AuthContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -21,11 +22,25 @@ const formatDate = (dateString: string | null) => {
 
 export default function ClassesPage() {
     const router = useRouter();
+    const { role, profile } = useAuth();
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [mounted, setMounted] = useState(false);
 
+    const isAdmin = role === "Admin";
+    const schoolId = profile?.school_id;
+
     const { classes, totalCount, loading, mutate } = useClasses({ page, search });
+    const { classes: adminClasses, totalCount: adminTotalCount, loading: adminLoading, mutate: adminMutate } = useAdminClasses({ 
+        page, 
+        search, 
+        schoolId: schoolId || "" 
+    });
+
+    const displayClasses = isAdmin ? adminClasses : classes;
+    const displayTotal = isAdmin ? adminTotalCount : totalCount;
+    const displayLoading = isAdmin ? adminLoading : loading;
+    const displayMutate = isAdmin ? adminMutate : mutate;
 
     useEffect(() => setMounted(true), []);
 
@@ -33,12 +48,12 @@ export default function ClassesPage() {
         router.push(`/dashboard/classes/${id}`);
     };
 
-    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(displayTotal / ITEMS_PER_PAGE);
 
     const Pagination = () => (
         <div className="flex items-center justify-between px-2">
             <div className="text-sm text-muted-foreground">
-                Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, totalCount)} of {totalCount} results
+                Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, displayTotal)} of {displayTotal} results
             </div>
             <div className="flex items-center space-x-2">
                 <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
@@ -57,21 +72,23 @@ export default function ClassesPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Classes</h1>
-                    <p className="text-muted-foreground">Manage all classes and academic years.</p>
+                    <p className="text-muted-foreground">{isAdmin ? "Manage classes in your school." : "Manage all classes and academic years."}</p>
                 </div>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button className="shrink-0"><Plus className="mr-2 h-4 w-4" /> Add Class</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create New Class</DialogTitle>
-                        </DialogHeader>
-                        <div className="p-4">
-                            <AddClassForm onSuccess={() => mutate()} />
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                {(isAdmin || role === "Superadmin") && (
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button className="shrink-0"><Plus className="mr-2 h-4 w-4" /> Add Class</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Class</DialogTitle>
+                            </DialogHeader>
+                            <div className="p-4">
+                                <AddClassForm defaultSchoolId={isAdmin ? schoolId : undefined} onSuccess={() => displayMutate()} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )}
             </div>
 
             <Card className="border-none shadow-sm">
@@ -85,7 +102,7 @@ export default function ClassesPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {loading ? (
+                    {displayLoading ? (
                         <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                     ) : (
                         <Table>
@@ -99,12 +116,12 @@ export default function ClassesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {classes.length === 0 ? (
+                                {displayClasses.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={5} className="text-center h-24 text-muted-foreground border-none">No classes found.</TableCell>
                                     </TableRow>
                                 ) : (
-                                    classes.map((cls: any) => (
+                                    displayClasses.map((cls: any) => (
                                         <TableRow key={cls.id} onClick={() => handleRowClick(cls.id)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell className="font-medium">{cls.class_name}</TableCell>
                                             <TableCell>{cls.schools?.address || "N/A"}</TableCell>

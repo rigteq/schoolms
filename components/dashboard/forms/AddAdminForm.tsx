@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect } from "react";
-
 import { createUserWithRole } from "@/app/actions/user-actions";
+import { getAgeValidationError, getMaxDate, getMinDate } from "@/lib/utils/validation";
 
 export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
+    const [dobError, setDobError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         school_id: "",
@@ -22,7 +22,16 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         email: "",
         password: "",
         phone: "",
+        dob: "",
     });
+
+    const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const dob = e.target.value;
+        setFormData({ ...formData, dob });
+        
+        const ageError = getAgeValidationError(dob, 4, 120);
+        setDobError(ageError);
+    };
 
     useEffect(() => {
         async function fetchSchools() {
@@ -42,6 +51,14 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             setError("Password must be at least 6 characters");
             return;
         }
+        if (!formData.dob) {
+            setError("Date of birth is required");
+            return;
+        }
+        if (dobError) {
+            setError(dobError);
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -54,7 +71,8 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
 
             if (!result.success) throw new Error(result.error);
 
-            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "" });
+            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "" });
+            setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
             console.error(err);
@@ -100,6 +118,24 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                     required
                     placeholder="Jane Doe"
                 />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="dob">Date of Birth</Label>
+                <Input
+                    id="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={handleDobChange}
+                    required
+                    min={getMinDate(120)}
+                    max={getMaxDate(4)}
+                />
+                {dobError && (
+                    <div className="text-red-500 text-sm">
+                        {dobError}
+                    </div>
+                )}
             </div>
 
             <div className="space-y-2">
