@@ -3,9 +3,9 @@
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import SuperAdminDashboard from "@/components/dashboard/superadmin/SuperAdminDashboard";
-// import AdminDashboard from "@/components/dashboard/admin/AdminDashboard";
-// import TeacherDashboard from "@/components/dashboard/teacher/TeacherDashboard";
-// import StudentDashboard from "@/components/dashboard/student/StudentDashboard";
+import AdminDashboard from "@/components/dashboard/admin/AdminDashboard";
+import TeacherDashboard from "@/components/dashboard/teacher/TeacherDashboard";
+import StudentDashboard from "@/components/dashboard/student/StudentDashboard";
 
 export default function DashboardPage() {
     const { role, isLoading } = useAuth();
@@ -19,21 +19,20 @@ export default function DashboardPage() {
         );
     }
 
-    /* Logic Gate */
     if (role === "Superadmin") {
         return <SuperAdminDashboard />;
     }
 
     if (role === "Admin") {
-        return <div>Admin Dashboard (Coming Soon)</div>; // <AdminDashboard />;
+        return <AdminDashboard />;
     }
 
     if (role === "Teacher") {
-        return <div>Teacher Dashboard (Coming Soon)</div>; // <TeacherDashboard />;
+        return <TeacherDashboard />;
     }
 
     if (role === "Student") {
-        return <div>Student Dashboard (Coming Soon)</div>; // <StudentDashboard />;
+        return <StudentDashboard />;
     }
 
     return (

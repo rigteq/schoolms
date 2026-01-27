@@ -4,11 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 
-interface DashboardShellProps {
-    children: React.ReactNode;
-}
-
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
 

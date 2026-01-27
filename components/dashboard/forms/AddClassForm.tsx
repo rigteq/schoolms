@@ -8,28 +8,37 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 
-export default function AddClassForm({ onSuccess }: { onSuccess?: () => void }) {
+interface AddClassFormProps {
+    onSuccess?: () => void;
+    defaultSchoolId?: string;
+}
+
+export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFormProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
-        school_id: "",
+        school_id: defaultSchoolId || "",
         class_name: "",
         academic_year: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1)
     });
 
     useEffect(() => {
-        async function fetchSchools() {
-            const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
-            if (data) setSchools(data);
+        if (!defaultSchoolId) {
+            async function fetchSchools() {
+                const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
+                if (data) setSchools(data);
+            }
+            fetchSchools();
         }
-        fetchSchools();
-    }, []);
+    }, [defaultSchoolId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.school_id) {
+        const schoolIdToUse = defaultSchoolId || formData.school_id;
+        
+        if (!schoolIdToUse) {
             setError("Please select a school");
             return;
         }
@@ -39,11 +48,11 @@ export default function AddClassForm({ onSuccess }: { onSuccess?: () => void }) 
         try {
             const { error: insertError } = await supabase
                 .from("classes")
-                .insert([formData]);
+                .insert([{ ...formData, school_id: schoolIdToUse }]);
 
             if (insertError) throw insertError;
 
-            setFormData({ school_id: "", class_name: "", academic_year: "" });
+            setFormData({ school_id: defaultSchoolId || "", class_name: "", academic_year: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1) });
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || "Failed to add class");
@@ -60,24 +69,26 @@ export default function AddClassForm({ onSuccess }: { onSuccess?: () => void }) 
                 </div>
             )}
 
-            <div className="space-y-2">
-                <Label htmlFor="school">School</Label>
-                <Select
-                    onValueChange={(val) => setFormData({ ...formData, school_id: val })}
-                    value={formData.school_id}
-                >
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a school" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {schools.map(school => (
-                            <SelectItem key={school.id} value={school.id}>
-                                {school.school_name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+            {!defaultSchoolId && (
+                <div className="space-y-2">
+                    <Label htmlFor="school">School</Label>
+                    <Select
+                        onValueChange={(val) => setFormData({ ...formData, school_id: val })}
+                        value={formData.school_id}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a school" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {schools.map(school => (
+                                <SelectItem key={school.id} value={school.id}>
+                                    {school.school_name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
 
             <div className="space-y-2">
                 <Label htmlFor="class_name">Class Name</Label>
