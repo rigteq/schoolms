@@ -13,7 +13,7 @@ import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
 import { useTeachers, useAdminTeachers } from "@/lib/hooks/useData";
 import { useAuth } from "@/context/AuthContext";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 50;
 
 const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -31,10 +31,10 @@ export default function TeachersPage() {
     const schoolId = profile?.school_id;
 
     const { teachers, totalCount, loading, mutate } = useTeachers({ page, search });
-    const { teachers: adminTeachers, totalCount: adminTotalCount, loading: adminLoading, mutate: adminMutate } = useAdminTeachers({ 
-        page, 
-        search, 
-        schoolId: schoolId || "" 
+    const { teachers: adminTeachers, totalCount: adminTotalCount, loading: adminLoading, mutate: adminMutate } = useAdminTeachers({
+        page,
+        search,
+        schoolId: schoolId || ""
     });
 
     // Use admin teachers if user is admin, otherwise use all teachers
@@ -110,7 +110,7 @@ export default function TeachersPage() {
                             <TableHeader className="border-none">
                                 <TableRow className="border-b border-gray-100 hover:bg-transparent">
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Address</TableHead>
+                                    <TableHead>Subject</TableHead>
                                     <TableHead>Contact</TableHead>
                                     <TableHead>Created On</TableHead>
                                     <TableHead>Edited On</TableHead>
@@ -125,7 +125,9 @@ export default function TeachersPage() {
                                     displayTeachers.map((teacher: any) => (
                                         <TableRow key={teacher.id} onClick={() => handleRowClick(teacher.id)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell className="font-medium">{teacher.full_name}</TableCell>
-                                            <TableCell>{teacher.current_address || "N/A"}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{(Array.isArray(teacher.teachers_data) ? teacher.teachers_data[0] : teacher.teachers_data)?.subject_specialization || "General"}</Badge>
+                                            </TableCell>
                                             <TableCell className="max-w-[200px] truncate">
                                                 <div className="flex flex-col text-xs">
                                                     {teacher.email && <span>{teacher.email}</span>}

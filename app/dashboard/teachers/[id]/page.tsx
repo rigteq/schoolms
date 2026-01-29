@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+import EditProfileDialog from "@/components/dashboard/forms/EditProfileDialog";
+
 export default function TeacherDetailPage() {
     const { id } = useParams();
     const router = useRouter();
@@ -18,40 +20,58 @@ export default function TeacherDetailPage() {
 
     useEffect(() => setMounted(true), []);
 
-    useEffect(() => {
-        async function fetchTeacherDetails() {
-            if (!id) return;
-            setLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from("profiles")
-                    .select(`
+    const fetchTeacherDetails = async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select(`
              *,
              schools (school_name)
           `)
-                    .eq("id", id)
-                    .single();
+                .eq("id", id)
+                .single();
 
-                if (error) throw error;
+            if (error) throw error;
+            setTeacher(data);
+
+            // Fetch Teacher Data to get class_ids
+            const { data: teacherData } = await supabase
+                .from("teachers_data")
+                .select("subject_specialization, class_ids")
+                .eq("id", id)
+                .single();
+
+            if (teacherData) {
+                // Merge subject into teacher object
+                setTeacher({ ...data, subject_specialization: teacherData.subject_specialization });
+            } else {
                 setTeacher(data);
-
-                const { data: classesData } = await supabase
-                    .from("teachers_data")
-                    .select(`
-             subject_name,
-             classes (id, class_name, academic_year)
-           `)
-                    .eq("id", id);
-
-                setClasses(classesData?.map((item: any) => ({ ...item.classes, subject_name: item.subject_name })) || []);
-
-            } catch (error) {
-                console.error("Error fetching teacher:", error);
-            } finally {
-                setLoading(false);
             }
-        }
 
+            if (teacherData?.class_ids?.length) {
+                const { data: classesData } = await supabase
+                    .from("classes")
+                    .select("id, class_name, academic_year")
+                    .in("id", teacherData.class_ids);
+
+                setClasses(classesData?.map(c => ({
+                    ...c,
+                    subject_name: teacherData.subject_specialization
+                })) || []);
+            } else {
+                setClasses([]);
+            }
+
+        } catch (error) {
+            console.error("Error fetching teacher:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchTeacherDetails();
     }, [id]);
 
@@ -87,6 +107,7 @@ export default function TeacherDetailPage() {
                                     {teacher.email && (
                                         <span className="flex items-center gap-1"><Mail className="h-4 w-4" /> {teacher.email}</span>
                                     )}
+                                    <span className="flex items-center gap-1"><BookOpen className="h-4 w-4" /> {teacher.subject_specialization || "General Teacher"}</span>
                                     {teacher.phone && (
                                         <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> {teacher.phone}</span>
                                     )}
@@ -97,7 +118,12 @@ export default function TeacherDetailPage() {
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
+                            <EditProfileDialog
+                                profile={teacher}
+                                onSuccess={fetchTeacherDetails}
+                                isTeacher={true}
+                                defaultSubject={teacher.subject_specialization}
+                            />
                             <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
                         </div>
                     </div>

@@ -106,9 +106,9 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                     <SelectTrigger>
                         <SelectValue placeholder="Select a school" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white">
                         {schools.map(school => (
-                            <SelectItem key={school.id} value={school.id}>
+                            <SelectItem key={school.id} value={school.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
                                 {school.school_name}
                             </SelectItem>
                         ))}

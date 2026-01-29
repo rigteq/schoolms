@@ -9,7 +9,7 @@ interface UsePaginationOptions {
     itemsPerPage?: number;
 }
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 50;
 
 export function useSchools({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`schools`, page, search].join('#');
@@ -83,7 +83,9 @@ export function useTeachers({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
         const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
         if (!roles) return { data: [], count: 0 };
 
-        let query = supabase.from("profiles").select(`*, schools(school_name)`, { count: "exact" }).eq("role_id", roles.id).eq("is_deleted", false);
+        let query = supabase.from("profiles")
+            .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
+            .eq("role_id", roles.id).eq("is_deleted", false);
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -117,7 +119,9 @@ export function useStudents({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
         const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
         if (!roles) return { data: [], count: 0 };
 
-        let query = supabase.from("profiles").select(`*, schools(school_name)`, { count: "exact" }).eq("role_id", roles.id).eq("is_deleted", false);
+        let query = supabase.from("profiles")
+            .select(`*, schools(school_name), students_data(class_id, classes(class_name))`, { count: "exact" })
+            .eq("role_id", roles.id).eq("is_deleted", false);
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -148,7 +152,8 @@ export function useClasses({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UseP
     const key = [`classes`, page, search].join('#');
 
     const fetcher = async () => {
-        let query = supabase.from("classes").select(`*, schools(school_name, address, phone, email)`, { count: "exact" });
+        let query = supabase.from("classes")
+            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" });
         if (search) query = query.ilike("class_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -212,6 +217,50 @@ export function useStats() {
     };
 }
 
+export function useSchoolStats(schoolId: string | undefined) {
+    const key = schoolId ? `school-stats-${schoolId}` : null;
+
+    const fetcher = async () => {
+        if (!schoolId) return { teachers: 0, students: 0, classes: 0 };
+
+        const { data: roles } = await supabase.from("roles").select("id, role_name");
+        const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
+        const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
+
+        const { count: teachersCount } = await supabase.from("profiles")
+            .select("*", { count: 'exact', head: true })
+            .eq("school_id", schoolId)
+            .eq("role_id", teacherRoleId || "")
+            .eq("is_deleted", false);
+
+        const { count: studentsCount } = await supabase.from("profiles")
+            .select("*", { count: 'exact', head: true })
+            .eq("school_id", schoolId)
+            .eq("role_id", studentRoleId || "")
+            .eq("is_deleted", false);
+
+        const { count: classesCount } = await supabase.from("classes")
+            .select("*", { count: 'exact', head: true })
+            .eq("school_id", schoolId)
+            .eq("is_deleted", false);
+
+        return {
+            teachers: teachersCount || 0,
+            students: studentsCount || 0,
+            classes: classesCount || 0,
+        };
+    };
+
+    const { data, error, isLoading, mutate } = useSWR(key, fetcher);
+
+    return {
+        stats: data || { teachers: 0, students: 0, classes: 0 },
+        loading: isLoading,
+        error,
+        mutate
+    };
+}
+
 export function useAdminTeachers({ page, search, schoolId, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions & { schoolId: string }) {
     const key = [`admin-teachers`, page, search, schoolId].join('#');
 
@@ -220,11 +269,11 @@ export function useAdminTeachers({ page, search, schoolId, itemsPerPage = ITEMS_
         if (!roles) return { data: [], count: 0 };
 
         let query = supabase.from("profiles")
-            .select(`*, schools(school_name)`, { count: "exact" })
+            .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
             .eq("role_id", roles.id)
             .eq("school_id", schoolId)
             .eq("is_deleted", false);
-        
+
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -259,11 +308,11 @@ export function useAdminStudents({ page, search, schoolId, itemsPerPage = ITEMS_
         if (!roles) return { data: [], count: 0 };
 
         let query = supabase.from("profiles")
-            .select(`*, schools(school_name)`, { count: "exact" })
+            .select(`*, schools(school_name), students_data(class_id, classes(class_name))`, { count: "exact" })
             .eq("role_id", roles.id)
             .eq("school_id", schoolId)
             .eq("is_deleted", false);
-        
+
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -295,10 +344,10 @@ export function useAdminClasses({ page, search, schoolId, itemsPerPage = ITEMS_P
 
     const fetcher = async () => {
         let query = supabase.from("classes")
-            .select(`*, schools(school_name, address, phone, email)`, { count: "exact" })
+            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
             .eq("school_id", schoolId)
             .eq("is_deleted", false);
-        
+
         if (search) query = query.ilike("class_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;

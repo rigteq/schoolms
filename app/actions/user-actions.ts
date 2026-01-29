@@ -72,8 +72,8 @@ export async function createUserWithRole(params: CreateUserParams) {
         if (role_name === "Teacher") {
             const { error: teacherError } = await supabaseAdmin.from("teachers_data").insert({
                 id: user_id,
-                class_id: class_id || null,
-                subject_name: subject_name || null,
+                class_ids: [],
+                subject_specialization: subject_name || null,
             });
             if (teacherError) throw new Error(`Teacher data creation failed: ${teacherError.message}`);
         }

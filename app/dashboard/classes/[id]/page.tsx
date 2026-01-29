@@ -44,14 +44,19 @@ export default function ClassDetailsPage() {
             // 1. Fetch Class Info
             const { data: cls, error: clsError } = await supabase
                 .from("classes")
-                .select("*, schools(school_name)")
+                .select("*, schools(school_name), profiles:class_teacher_id(full_name)")
                 .eq("id", classId)
                 .single();
 
             if (clsError) throw clsError;
             setClassData(cls);
 
-            // 2. Fetch Students in this class
+            // ... (rest of function unchanged, but I need to include it or replace the block)
+            // I'll replace the block up to setTeachers part to be safe or just the select query if I can target it. 
+            // The instruction allows replacing the whole function if needed, but I'll try to target the select.
+            // Wait, I also need to update fetchAvailableUsers.
+
+            // 2. Fetch Students
             const { data: stud, error: studError } = await supabase
                 .from("students_data")
                 .select("*, profiles:id(full_name, email)")
@@ -60,8 +65,7 @@ export default function ClassDetailsPage() {
             if (studError) throw studError;
             setStudents(stud || []);
 
-            // 3. Fetch Teachers (using distinct teachers_data filter requires array check)
-            // Postgres array contains: class_ids @> {classId}
+            // 3. Fetch Teachers
             const { data: teach, error: teachError } = await supabase
                 .from("teachers_data")
                 .select("*, profiles:id(full_name, email)")
@@ -79,44 +83,29 @@ export default function ClassDetailsPage() {
     };
 
     const fetchAvailableUsers = async (type: "student" | "teacher") => {
-        if (!profile?.school_id) return;
+        // Use classData.school_id effectively.
+        // If classData is not loaded yet, we shouldn't be here (dialog is in content).
+        const targetSchoolId = classData?.school_id || profile?.school_id;
+        if (!targetSchoolId) return;
 
         if (type === "student") {
-            // Fetch students NOT in a class or just all students in school to move them?
-            // Usually "Add Student" implies assigning a student who might be unassigned or moving them.
-            // Let's fetch all students in school for simplicity of selection.
-            const { data } = await supabase
-                .from("profiles")
-                .select("id, full_name, students_data!inner(class_id)") // Inner join to ensure they are students
-                .eq("school_id", profile.school_id)
-                .eq("roles.role_name", "Student"); // Assuming role link is standard, or check roles table. 
-            // Better: query students_data -> profiles
-
-            const { data: avail } = await supabase
-                .from("students_data")
-                .select("id, profiles:id(full_name, school_id)")
-                .filter("profiles.school_id", "eq", profile.school_id); // This might be tricky with RLS if not set up for generic filter
-
-            // Simpler: Fetch profiles with role Student in school
-            // We need role ID for student
             const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
             if (roleData) {
                 const { data: studs } = await supabase
                     .from("profiles")
                     .select("id, full_name")
-                    .eq("school_id", profile.school_id)
+                    .eq("school_id", targetSchoolId)
                     .eq("role_id", roleData.id);
                 setAvailableStudents(studs || []);
             }
 
         } else {
-            // Fetch teachers in school
             const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
             if (roleData) {
                 const { data: teachs } = await supabase
                     .from("profiles")
                     .select("id, full_name")
-                    .eq("school_id", profile.school_id)
+                    .eq("school_id", targetSchoolId)
                     .eq("role_id", roleData.id);
                 setAvailableTeachers(teachs || []);
             }
@@ -152,23 +141,32 @@ export default function ClassDetailsPage() {
                 .from("teachers_data")
                 .select("class_ids")
                 .eq("id", selectedTeacher)
-                .single();
+                .maybeSingle();
 
             if (fetchError) throw fetchError;
 
-            const existingIds = current?.class_ids || [];
-            if (existingIds.includes(classId)) {
-                toast.error("Teacher is already assigned to this class");
-                return;
+            if (!current) {
+                // Create teachers_data if missing
+                const { error: insertError } = await supabase
+                    .from("teachers_data")
+                    .insert({ id: selectedTeacher, class_ids: [classId] });
+
+                if (insertError) throw insertError;
+            } else {
+                const existingIds = current.class_ids || [];
+                if (existingIds.includes(classId)) {
+                    toast.error("Teacher is already assigned to this class");
+                    return;
+                }
+
+                const newIds = [...existingIds, classId];
+                const { error: updateError } = await supabase
+                    .from("teachers_data")
+                    .update({ class_ids: newIds })
+                    .eq("id", selectedTeacher);
+
+                if (updateError) throw updateError;
             }
-
-            const newIds = [...existingIds, classId];
-            const { error: updateError } = await supabase
-                .from("teachers_data")
-                .update({ class_ids: newIds })
-                .eq("id", selectedTeacher);
-
-            if (updateError) throw updateError;
 
             toast.success("Teacher assigned to class");
             setIsAddTeacherOpen(false);
@@ -179,6 +177,7 @@ export default function ClassDetailsPage() {
             setActionLoading(false);
         }
     };
+
 
     const handleRemoveStudent = async (studentId: string) => {
         if (!confirm("Remove this student from the class?")) return;
@@ -226,7 +225,7 @@ export default function ClassDetailsPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">{classData.class_name}</h2>
-                    <p className="text-muted-foreground">{classData.schools?.school_name} • {classData.academic_year}</p>
+                    <p className="text-muted-foreground">{classData.schools?.school_name} • {classData.academic_year} • Class Teacher: {classData.profiles?.full_name || "N/A"}</p>
                 </div>
             </div>
 
@@ -255,9 +254,9 @@ export default function ClassDetailsPage() {
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a teacher..." />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="bg-white">
                                                 {availableTeachers.map(t => (
-                                                    <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
+                                                    <SelectItem key={t.id} value={t.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">{t.full_name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
@@ -320,9 +319,9 @@ export default function ClassDetailsPage() {
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a student..." />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="bg-white">
                                                 {availableStudents.map(s => (
-                                                    <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>
+                                                    <SelectItem key={s.id} value={s.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">{s.full_name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>

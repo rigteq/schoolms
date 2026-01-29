@@ -70,6 +70,7 @@ CREATE TABLE classes (
     school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
     class_name TEXT NOT NULL,
     academic_year TEXT NOT NULL,
+    class_teacher_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Using profiles(id) as teachers_data is 1:1 with profiles basically
     created_at TIMESTAMPTZ DEFAULT NOW(),
     modified_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE

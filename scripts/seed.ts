@@ -31,10 +31,10 @@ async function main() {
         process.exit(1);
     }
 
-    // 1. Ensure Roles Exist (from docs.sql, but just in case)
+    // 1. Fetch Roles
     const { data: roles, error: rolesError } = await supabase.from("roles").select("*");
     if (rolesError || !roles.length) {
-        console.error("❌ Roles not found using Service Key. Run docs.sql first.");
+        console.error("❌ Roles not found. Run docs.sql first.");
         process.exit(1);
     }
 
@@ -45,139 +45,200 @@ async function main() {
         Superadmin: roles.find((r) => r.role_name === "Superadmin")?.id,
     };
 
-    if (!roleMap.Superadmin) {
-        console.error("❌ Superadmin role missing.");
-        process.exit(1);
-    }
+    // Helper to create user
+    const createUser = async (email: string, name: string, roleName: 'Superadmin' | 'Admin' | 'Teacher' | 'Student', schoolId: string | null, extraData: any = {}) => {
+        // Check if user exists (by email) and delete if so to ensure fresh seed
+        // Note: In production, never do this. This is for dev seeding.
+        // Optimization: List users is slow. We'll try to delete by ID if we mapped them, 
+        // but for reliability here we'll search by email first.
 
-    // 2. Create Main School
-    const schoolName = "Springfield High";
-    let schoolId: string;
+        // This part is tricky without exact ID. 
+        // We will just try to create. If email taken, we skip or we logic-delete?
+        // Let's assume the user might exist.
+        // Ideally we should have deleted all users before running this script via SQL, but let's try to handle it.
 
-    const { data: existingSchool } = await supabase.from("schools").select("id").eq("school_name", schoolName).single();
+        // Find user by email
+        // We can't use 'eq' on auth.users via client directly easily without admin api list.
+        // We will skip delete logic per-user and rely on unique constraints failing or previous cleanup.
+        // Actually, let's just use upsert logic for profiles, but auth users need to be created.
 
-    if (existingSchool) {
-        console.log(`🏫 Found existing school: ${schoolName}`);
-        schoolId = existingSchool.id;
-    } else {
-        const { data: newSchool, error: createSchoolError } = await supabase
-            .from("schools")
-            .insert({
-                school_name: schoolName,
-                address: "742 Evergreen Terrace",
-                phone: "555-0100",
-                email: "admin@springfield.edu",
-            })
-            .select()
-            .single();
+        // Clean way: Try create. If error "User already registered", fetch ID.
+        let userId: string | null = null;
 
-        if (createSchoolError) {
-            console.error("❌ Failed to create school:", createSchoolError);
-            process.exit(1);
-        }
-        console.log(`✅ Created school: ${schoolName}`);
-        schoolId = newSchool.id;
-    }
-
-    // 3. Create Users
-    const users = [
-        {
-            email: "superadmin@schoolms.com",
+        const { data: createdData, error: createError } = await supabase.auth.admin.createUser({
+            email,
             password: "password123",
-            name: "System Superadmin",
-            roleName: "Superadmin",
-            roleId: roleMap.Superadmin
-        },
-        {
-            email: "admin@springfield.edu",
-            password: "password123",
-            name: "Springfield Admin",
-            roleName: "Admin",
-            roleId: roleMap.Admin
-        },
-        {
-            email: "teacher@springfield.edu",
-            password: "password123",
-            name: "Edna Krabappel",
-            roleName: "Teacher",
-            roleId: roleMap.Teacher
-        },
-        {
-            email: "student@springfield.edu",
-            password: "password123",
-            name: "Bart Simpson",
-            roleName: "Student",
-            roleId: roleMap.Student
-        }
-    ];
-
-    // Clean up existing auth users with these emails to prevent conflicts
-    // Note: We can't easily filter delete by email without ID, so we loop fetch.
-    // Given the small number, we just iterate.
-    for (const u of users) {
-        // Find user by email manually implies listUsers, but let's just try create and handle error?
-        // No, cleaner to recreate.
-        // We'll search for them in the list.
-    }
-
-    // Fetch all users to map emails
-    const { data: { users: allAuthUsers } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-    const emailToId = new Map(allAuthUsers?.map(u => [u.email, u.id]));
-
-    for (const u of users) {
-        if (emailToId.has(u.email)) {
-            const oldId = emailToId.get(u.email);
-            await supabase.auth.admin.deleteUser(oldId!);
-            console.log(`🗑️  Deleted existing user: ${u.email}`);
-        }
-
-        // Create
-        const { data: authData, error: createError } = await supabase.auth.admin.createUser({
-            email: u.email,
-            password: u.password,
             email_confirm: true,
-            user_metadata: { full_name: u.name, role: u.roleName },
-            app_metadata: { role: u.roleName }
+            user_metadata: { full_name: name, role: roleName },
+            app_metadata: { role: roleName }
         });
 
         if (createError) {
-            console.error(`❌ Failed to create ${u.email}:`, createError.message);
-            continue;
+            // If user exists, try to find their ID from profiles?? No profiles might be gone.
+            // We need to list users filters by email?
+            // supabase.auth.admin.listUsers() doesn't support filter by email directly in JS lib v2 usually easily?
+            // Actually `listUsers` has generic support.
+            // Let's just try to delete ALL users at start of script? No, that's dangerous if run in wrong env.
+            // Let's just log and continue if exists, assuming we update profile.
+            // But we need the ID.
+
+            // Getting ID for existing user:
+            // This is slow but works for seed.
+            const { data: { users } } = await supabase.auth.admin.listUsers();
+            const existing = users.find(u => u.email === email);
+            if (existing) {
+                userId = existing.id;
+                // Update password to be sure?
+                await supabase.auth.admin.updateUserById(userId, { password: "password123", user_metadata: { full_name: name, role: roleName } });
+            } else {
+                console.error(`❌ Could not create or find user ${email}`, createError);
+                return null;
+            }
+        } else {
+            userId = createdData.user.id;
         }
 
-        const userId = authData.user!.id;
+        if (!userId) return null;
 
-        // Profile
+        // Upsert Profile
         const { error: profileError } = await supabase.from("profiles").upsert({
             id: userId,
-            role_id: u.roleId,
-            school_id: schoolId, // Even superadmin gets a "home" school for now
-            full_name: u.name,
-            email: u.email,
+            role_id: roleMap[roleName],
+            school_id: schoolId,
+            full_name: name,
+            email: email,
+            created_at: new Date().toISOString(),
+            is_deleted: false,
+            ...extraData.profile // e.g. address
         });
 
         if (profileError) {
-            console.error(`❌ Failed to create profile for ${u.email}:`, profileError);
-        } else {
-            console.log(`👤 Created user: ${u.email} (${u.roleName})`);
+            console.error(`❌ Profile Error for ${name}:`, profileError.message);
+            return null;
         }
 
-        // Role Data
-        if (u.roleName === "Teacher") {
-            await supabase.from("teachers_data").upsert({ id: userId, class_ids: [] });
+        return userId;
+    };
+
+    // 2. Superadmin
+    console.log("👑 Creating Superadmin...");
+    await createUser("superadmin@schoolms.com", "System Superadmin", "Superadmin", null);
+
+    // 3. Schools Data
+    const schoolsData = [
+        {
+            name: "Springfield High",
+            domain: "springfield.edu",
+            address: "742 Evergreen Terrace",
+            adminName: "Springfield Admin",
+        },
+        {
+            name: "Riverside High",
+            domain: "riverside.edu",
+            address: "123 River Road",
+            adminName: "Riverside Admin",
         }
-        if (u.roleName === "Student") {
-            await supabase.from("students_data").upsert({ id: userId });
+    ];
+
+    for (const s of schoolsData) {
+        console.log(`\n🏫 Processing School: ${s.name}`);
+
+        // Create/Get School
+        let schoolId: string;
+        const { data: existingSchool } = await supabase.from("schools").select("id").eq("school_name", s.name).single();
+        if (existingSchool) {
+            schoolId = existingSchool.id;
+        } else {
+            const { data: newSchool } = await supabase.from("schools").insert({
+                school_name: s.name,
+                address: s.address,
+                email: `contact@${s.domain}`,
+                phone: "555-0100"
+            }).select().single();
+            schoolId = newSchool!.id;
+        }
+
+        // Create Admin
+        await createUser(`admin@${s.domain}`, s.adminName, "Admin", schoolId);
+
+        // Create Teachers (2)
+        const teachers: { id: string, name: string }[] = [];
+        for (let i = 1; i <= 2; i++) {
+            const tEmail = `teacher${i}@${s.domain}`;
+            const tName = `${s.name.split(' ')[0]} Teacher ${i}`;
+            const uid = await createUser(tEmail, tName, "Teacher", schoolId, { profile: { current_address: `${i} Teacher Lane` } });
+
+            if (uid) {
+                teachers.push({ id: uid, name: tName });
+                // Upsert Teachers Data (initially empty class_ids)
+                await supabase.from("teachers_data").upsert({
+                    id: uid,
+                    class_ids: [],
+                    subject_specialization: i === 1 ? "Mathematics" : "Science"
+                });
+            }
+        }
+
+        // Create Classes (2)
+        const classes: { id: string, name: string }[] = [];
+        const classNames = ["Grade 10-A", "Grade 10-B"];
+
+        for (let i = 0; i < classNames.length; i++) {
+            const cName = classNames[i];
+            const teacher = teachers[i]; // Assign teacher 0 to class 0, teacher 1 to class 1
+
+            // Create Class
+            const { data: clsData, error: clsError } = await supabase.from("classes").insert({
+                school_id: schoolId,
+                class_name: cName,
+                academic_year: "2025-2026",
+                class_teacher_id: teacher?.id || null, // FK to profiles
+            }).select().single();
+
+            if (clsError) {
+                console.error(`❌ Failed to create class ${cName}`, clsError);
+                continue;
+            }
+            classes.push({ id: clsData.id, name: cName });
+
+            // Update Teacher's Data with this class ID
+            if (teacher) {
+                // Get current
+                const { data: tData } = await supabase.from("teachers_data").select("class_ids").eq("id", teacher.id).single();
+                const currentIds = tData?.class_ids || [];
+                await supabase.from("teachers_data").update({
+                    class_ids: [...currentIds, clsData.id]
+                }).eq("id", teacher.id);
+            }
+        }
+
+        // Create Students (10)
+        // 5 in each class
+        for (let i = 1; i <= 10; i++) {
+            const sEmail = `student${i}@${s.domain}`;
+            const sName = `${s.name.split(' ')[0]} Student ${i}`;
+            const uid = await createUser(sEmail, sName, "Student", schoolId, { profile: { current_address: `${i} Student St` } });
+
+            if (uid) {
+                // Determine Class (1-5 -> Class 0, 6-10 -> Class 1)
+                const classIndex = i <= 5 ? 0 : 1;
+                const assignedClass = classes[classIndex];
+
+                await supabase.from("students_data").upsert({
+                    id: uid,
+                    class_id: assignedClass?.id || null,
+                    parent_name: `Parent of ${sName}`,
+                    parent_phone: "555-9999"
+                });
+            }
         }
     }
 
-    console.log("\n✨ Initialization Complete!");
-    console.log("----------------------------------------");
-    console.log("Superadmin: superadmin@schoolms.com / password123");
-    console.log("Admin:      admin@springfield.edu   / password123");
-    console.log("Teacher:    teacher@springfield.edu / password123");
-    console.log("Student:    student@springfield.edu / password123");
-    console.log("----------------------------------------");
+    console.log("\n✨ Seed Completed Successfully!");
+    console.log("Superadmin: superadmin@schoolms.com");
 }
 
-main();
+main().catch(err => {
+    console.error("Fatal Error:", err);
+    process.exit(1);
+});

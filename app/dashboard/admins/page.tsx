@@ -103,7 +103,7 @@ export default function AdminsPage() {
                                     </TableRow>
                                 ) : (
                                     admins.map((admin: any) => (
-                                        <TableRow key={admin.id} className="cursor-default border-b border-gray-50 hover:bg-transparent">
+                                        <TableRow key={admin.id} onClick={() => router.push(`/dashboard/admins/${admin.id}`)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell className="font-medium">{admin.full_name}</TableCell>
                                             <TableCell>{admin.email}</TableCell>
                                             <TableCell>{admin.schools?.school_name || "N/A"}</TableCell>

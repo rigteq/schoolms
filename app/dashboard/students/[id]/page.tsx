@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+import EditProfileDialog from "@/components/dashboard/forms/EditProfileDialog";
+
 export default function StudentDetailPagePage() {
     const { id } = useParams();
     const router = useRouter();
@@ -19,53 +21,57 @@ export default function StudentDetailPagePage() {
 
     useEffect(() => setMounted(true), []);
 
-    useEffect(() => {
-        async function fetchStudentDetails() {
-            if (!id) return;
-            setLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from("profiles")
-                    .select(`
+    const fetchStudentDetails = async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select(`
              *,
              schools (school_name)
           `)
-                    .eq("id", id)
-                    .single();
+                .eq("id", id)
+                .single();
 
-                if (error) throw error;
-                setStudent(data);
+            if (error) throw error;
+            setStudent(data);
 
-                const { data: enrollment } = await supabase
-                    .from("students_data")
-                    .select(`
+            const { data: enrollment } = await supabase
+                .from("students_data")
+                .select(`
              *,
              classes (id, class_name, academic_year)
            `)
-                    .eq("id", id)
-                    .maybeSingle();
+                .eq("id", id)
+                .maybeSingle();
 
-                if (enrollment?.classes) {
-                    setEnrolledClass(enrollment.classes);
+            if (enrollment?.classes) {
+                setEnrolledClass(enrollment.classes);
 
-                    const { data: teachersData } = await supabase
-                        .from("teachers_data")
-                        .select(`
-                   subject_name,
-                   profiles:teacher_id (id, full_name, email)
+                const { data: teachersData } = await supabase
+                    .from("teachers_data")
+                    .select(`
+                   id,
+                   subject_specialization,
+                   profiles:id (full_name, email)
                 `)
-                        .eq("class_id", enrollment.classes.id);
+                    .contains("class_ids", [enrollment.classes.id]);
 
-                    setTeachers(teachersData?.map((t: any) => ({ ...t.profiles, subject: t.subject_name })) || []);
-                }
-
-            } catch (error) {
-                console.error("Error fetching student:", error);
-            } finally {
-                setLoading(false);
+                setTeachers(teachersData?.map((t: any) => ({ ...t.profiles, id: t.id, subject: t.subject_specialization })) || []);
+            } else {
+                setEnrolledClass(null);
+                setTeachers([]);
             }
-        }
 
+        } catch (error) {
+            console.error("Error fetching student:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchStudentDetails();
     }, [id]);
 
@@ -111,7 +117,7 @@ export default function StudentDetailPagePage() {
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
+                            <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} />
                             <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
                         </div>
                     </div>

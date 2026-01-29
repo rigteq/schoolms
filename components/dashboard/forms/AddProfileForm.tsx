@@ -22,6 +22,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
     const [error, setError] = useState<string | null>(null);
     const [dobError, setDobError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
+    const [classes, setClasses] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         school_id: defaultSchoolId || "",
@@ -30,7 +31,9 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         password: "",
         phone: "",
         current_address: "",
-        dob: ""
+        dob: "",
+        subject_name: "", // For Teacher
+        class_id: "",     // For Student
     });
 
     useEffect(() => {
@@ -42,6 +45,25 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             fetchSchools();
         }
     }, [defaultSchoolId]);
+
+    // Fetch classes when school_id changes (and if role is Student)
+    useEffect(() => {
+        const sid = defaultSchoolId || formData.school_id;
+        if (sid && roleName === "Student") {
+            async function fetchClasses() {
+                const { data } = await supabase
+                    .from("classes")
+                    .select("id, class_name")
+                    .eq("school_id", sid)
+                    .order("class_name");
+                if (data) setClasses(data);
+                else setClasses([]);
+            }
+            fetchClasses();
+        } else {
+            setClasses([]);
+        }
+    }, [defaultSchoolId, formData.school_id, roleName]);
 
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const dob = e.target.value;
@@ -87,13 +109,26 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 ...formData,
                 school_id: schoolIdToUse,
                 role_name: roleName,
-                address: formData.current_address
+                address: formData.current_address,
+                // Pass optional fields
+                subject_name: roleName === "Teacher" ? formData.subject_name : undefined,
+                class_id: roleName === "Student" ? formData.class_id : undefined,
             });
 
             if (!result.success) throw new Error(result.error);
 
             toast.success(`${roleName} created successfully!`);
-            setFormData({ school_id: defaultSchoolId || "", full_name: "", email: "", password: "", phone: "", current_address: "", dob: "" });
+            setFormData({
+                school_id: defaultSchoolId || "",
+                full_name: "",
+                email: "",
+                password: "",
+                phone: "",
+                current_address: "",
+                dob: "",
+                subject_name: "",
+                class_id: ""
+            });
             setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
@@ -116,20 +151,54 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 <div className="space-y-2">
                     <Label htmlFor="school">School</Label>
                     <Select
-                        onValueChange={(val) => setFormData({ ...formData, school_id: val })}
+                        onValueChange={(val) => setFormData({ ...formData, school_id: val, class_id: "" })} // Reset class if school changes
                         value={formData.school_id}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Select a school" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white">
                             {schools.map(school => (
-                                <SelectItem key={school.id} value={school.id}>
+                                <SelectItem key={school.id} value={school.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
                                     {school.school_name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+                </div>
+            )}
+
+            {roleName === "Student" && (
+                <div className="space-y-2">
+                    <Label htmlFor="class">Class (Optional)</Label>
+                    <Select
+                        onValueChange={(val) => setFormData({ ...formData, class_id: val })}
+                        value={formData.class_id}
+                        disabled={!formData.school_id && !defaultSchoolId}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder={(!formData.school_id && !defaultSchoolId) ? "Select a school first" : "Select a class"} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                            {classes.map(cls => (
+                                <SelectItem key={cls.id} value={cls.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
+                                    {cls.class_name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+
+            {roleName === "Teacher" && (
+                <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                        id="subject"
+                        value={formData.subject_name}
+                        onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
+                        placeholder="e.g. Mathematics"
+                    />
                 </div>
             )}
 

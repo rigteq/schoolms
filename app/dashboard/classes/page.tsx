@@ -13,7 +13,7 @@ import AddClassForm from "@/components/dashboard/forms/AddClassForm";
 import { useClasses, useAdminClasses } from "@/lib/hooks/useData";
 import { useAuth } from "@/context/AuthContext";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 50;
 
 const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -31,10 +31,10 @@ export default function ClassesPage() {
     const schoolId = profile?.school_id;
 
     const { classes, totalCount, loading, mutate } = useClasses({ page, search });
-    const { classes: adminClasses, totalCount: adminTotalCount, loading: adminLoading, mutate: adminMutate } = useAdminClasses({ 
-        page, 
-        search, 
-        schoolId: schoolId || "" 
+    const { classes: adminClasses, totalCount: adminTotalCount, loading: adminLoading, mutate: adminMutate } = useAdminClasses({
+        page,
+        search,
+        schoolId: schoolId || ""
     });
 
     const displayClasses = isAdmin ? adminClasses : classes;
@@ -109,8 +109,8 @@ export default function ClassesPage() {
                             <TableHeader className="border-none">
                                 <TableRow className="border-b border-gray-100 hover:bg-transparent">
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Address</TableHead>
-                                    <TableHead>Contact</TableHead>
+                                    <TableHead>Class Teacher</TableHead>
+                                    <TableHead>Total Students</TableHead>
                                     <TableHead>Created On</TableHead>
                                     <TableHead>Edited On</TableHead>
                                 </TableRow>
@@ -124,12 +124,11 @@ export default function ClassesPage() {
                                     displayClasses.map((cls: any) => (
                                         <TableRow key={cls.id} onClick={() => handleRowClick(cls.id)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell className="font-medium">{cls.class_name}</TableCell>
-                                            <TableCell>{cls.schools?.address || "N/A"}</TableCell>
-                                            <TableCell className="max-w-[200px] truncate">
-                                                <div className="flex flex-col text-xs">
-                                                    {cls.schools?.email && <span>{cls.schools.email}</span>}
-                                                    {cls.schools?.phone && <span>{cls.schools.phone}</span>}
-                                                </div>
+                                            <TableCell>{cls.profiles?.full_name || "Unassigned"}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary" className="font-normal">
+                                                    {cls.students_data?.[0]?.count || 0} Students
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>{mounted ? formatDate(cls.created_at) : "-"}</TableCell>
                                             <TableCell>{mounted ? formatDate(cls.modified_at) : "-"}</TableCell>

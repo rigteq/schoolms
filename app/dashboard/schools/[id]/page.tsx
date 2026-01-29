@@ -19,6 +19,7 @@ export default function SchoolDetailPage() {
     const [classes, setClasses] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
+    const [admins, setAdmins] = useState<any[]>([]);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => setMounted(true), []);
@@ -44,13 +45,16 @@ export default function SchoolDetailPage() {
                 const { data: roles } = await supabase.from("roles").select("id, role_name");
                 const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
                 const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
+                const adminRoleId = roles?.find(r => r.role_name === 'Admin')?.id;
 
                 const { data: teachersData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", teacherRoleId || "");
                 const { data: studentsData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", studentRoleId || "");
+                const { data: adminsData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", adminRoleId || "");
 
                 setClasses(classesData || []);
                 setTeachers(teachersData || []);
                 setStudents(studentsData || []);
+                setAdmins(adminsData || []);
 
             } catch (error) {
                 console.error("Error fetching school:", error);
@@ -94,13 +98,13 @@ export default function SchoolDetailPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Admins</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{students.length}</div>
+                        <div className="text-2xl font-bold">{admins.length}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -109,6 +113,14 @@ export default function SchoolDetailPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{teachers.length}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{students.length}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -125,6 +137,7 @@ export default function SchoolDetailPage() {
                 <Tabs defaultValue="classes" className="w-full">
                     <TabsList className="bg-white shadow-sm rounded-lg p-1">
                         <TabsTrigger value="classes">Classes</TabsTrigger>
+                        <TabsTrigger value="admins">Admins</TabsTrigger>
                         <TabsTrigger value="teachers">Teachers</TabsTrigger>
                         <TabsTrigger value="students">Students</TabsTrigger>
                     </TabsList>
@@ -143,6 +156,25 @@ export default function SchoolDetailPage() {
                                         </div>
                                     ))}
                                     {classes.length === 0 && <div className="p-4 text-center text-muted-foreground">No classes found</div>}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="admins" className="mt-4">
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="p-4 border-b font-medium bg-gray-50/50">Admins List</div>
+                                <div className="divide-y">
+                                    {admins.map(a => (
+                                        <div key={a.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/admins/${a.id}`)}>
+                                            <div>
+                                                <p className="font-medium">{a.full_name}</p>
+                                                <p className="text-sm text-muted-foreground">{a.email}</p>
+                                            </div>
+                                            <Badge variant="outline">Admin</Badge>
+                                        </div>
+                                    ))}
+                                    {admins.length === 0 && <div className="p-4 text-center text-muted-foreground">No admins found</div>}
                                 </div>
                             </CardContent>
                         </Card>
