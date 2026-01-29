@@ -14,14 +14,6 @@ if (!supabaseUrl || !supabaseServiceKey) {
     process.exit(1);
 }
 
-// Basic format check for Service Role Key (should be a JWT starting with 'ey')
-if (!supabaseServiceKey.startsWith("ey")) {
-    console.warn("⚠️  WARNING: SUPABASE_SERVICE_ROLE_KEY does not start with 'ey'.");
-    console.warn("   It looks like you might be using a 'sb_secret_...' or 'sb_publishable_...' token.");
-    console.warn("   The Service Role Key MUST be the JWT Secret found in Supabase Dashboard > Project Settings > API > Service Role Key.");
-    console.warn("   Using an invalid key will cause 'Database error' or network failures.");
-}
-
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
         autoRefreshToken: false,
@@ -30,93 +22,117 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 async function main() {
-    console.log("🌱 Starting database seed...");
+    console.log("🌱 Starting system initialization seed...");
 
-    // Test Admin Access
-    const { data: userList, error: listError } = await supabase.auth.admin.listUsers();
-    if (listError) {
-        console.error("❌ Critical Error: Unable to list users. Check your Service Role Key.");
-        console.error("Error Detail:", JSON.stringify(listError, null, 2));
+    // 0. Verify Connection
+    const { error: healthError } = await supabase.from('roles').select('count', { count: 'exact', head: true });
+    if (healthError) {
+        console.error("❌ Database connection failed:", healthError.message);
         process.exit(1);
+    }
+
+    // 1. Ensure Roles Exist (from docs.sql, but just in case)
+    const { data: roles, error: rolesError } = await supabase.from("roles").select("*");
+    if (rolesError || !roles.length) {
+        console.error("❌ Roles not found using Service Key. Run docs.sql first.");
+        process.exit(1);
+    }
+
+    const roleMap = {
+        Student: roles.find((r) => r.role_name === "Student")?.id,
+        Teacher: roles.find((r) => r.role_name === "Teacher")?.id,
+        Admin: roles.find((r) => r.role_name === "Admin")?.id,
+        Superadmin: roles.find((r) => r.role_name === "Superadmin")?.id,
+    };
+
+    if (!roleMap.Superadmin) {
+        console.error("❌ Superadmin role missing.");
+        process.exit(1);
+    }
+
+    // 2. Create Main School
+    const schoolName = "Springfield High";
+    let schoolId: string;
+
+    const { data: existingSchool } = await supabase.from("schools").select("id").eq("school_name", schoolName).single();
+
+    if (existingSchool) {
+        console.log(`🏫 Found existing school: ${schoolName}`);
+        schoolId = existingSchool.id;
     } else {
-        console.log(`✅ Admin Access Verified. Found ${userList.users.length} existing users.`);
-    }
+        const { data: newSchool, error: createSchoolError } = await supabase
+            .from("schools")
+            .insert({
+                school_name: schoolName,
+                address: "742 Evergreen Terrace",
+                phone: "555-0100",
+                email: "admin@springfield.edu",
+            })
+            .select()
+            .single();
 
-    // 1. Create School
-    const { data: school, error: schoolError } = await supabase
-        .from("schools")
-        .insert({
-            school_name: "Springfield High",
-            address: "742 Evergreen Terrace",
-            phone: "555-0100",
-            email: "info@springfield.edu",
-        })
-        .select()
-        .single();
-
-    // ... (rest of the script)
-
-    if (schoolError) {
-        console.error("Error creating school:", schoolError);
-        // Don't exit, maybe it already exists
-    }
-
-    let schoolId = school?.id;
-    if (!schoolId) {
-        console.log("Could not get school ID, trying to fetch existing...");
-        const { data: existingSchool } = await supabase.from("schools").select("id").eq("school_name", "Springfield High").single();
-        if (existingSchool) {
-            console.log("Found existing school.");
-            schoolId = existingSchool.id;
-        } else {
-            console.error("Failed to get school.");
+        if (createSchoolError) {
+            console.error("❌ Failed to create school:", createSchoolError);
             process.exit(1);
         }
+        console.log(`✅ Created school: ${schoolName}`);
+        schoolId = newSchool.id;
     }
 
-    // 2. Fetch Roles
-    const { data: roles } = await supabase.from("roles").select("*");
-    const studentRoleId = roles?.find((r) => r.role_name === "Student")?.id;
-    const teacherRoleId = roles?.find((r) => r.role_name === "Teacher")?.id;
-    const adminRoleId = roles?.find((r) => r.role_name === "Admin")?.id;
-    const superadminRoleId = roles?.find((r) => r.role_name === "Superadmin")?.id;
-
-    if (!studentRoleId || !teacherRoleId || !adminRoleId || !superadminRoleId) {
-        console.error("Roles not found. Please run SQL migration first.");
-        process.exit(1);
-    }
-
+    // 3. Create Users
     const users = [
-        { email: "student_demo@test.com", password: "password123", roleId: studentRoleId, name: "Student User", roleName: "Student" },
-        { email: "teacher_demo@test.com", password: "password123", roleId: teacherRoleId, name: "Teacher User", roleName: "Teacher" },
-        { email: "admin_demo@test.com", password: "password123", roleId: adminRoleId, name: "Admin User", roleName: "Admin" },
-        { email: "superadmin_demo@test.com", password: "password123", roleId: superadminRoleId, name: "Super Admin", roleName: "Superadmin" },
+        {
+            email: "superadmin@schoolms.com",
+            password: "password123",
+            name: "System Superadmin",
+            roleName: "Superadmin",
+            roleId: roleMap.Superadmin
+        },
+        {
+            email: "admin@springfield.edu",
+            password: "password123",
+            name: "Springfield Admin",
+            roleName: "Admin",
+            roleId: roleMap.Admin
+        },
+        {
+            email: "teacher@springfield.edu",
+            password: "password123",
+            name: "Edna Krabappel",
+            roleName: "Teacher",
+            roleId: roleMap.Teacher
+        },
+        {
+            email: "student@springfield.edu",
+            password: "password123",
+            name: "Bart Simpson",
+            roleName: "Student",
+            roleId: roleMap.Student
+        }
     ];
 
-    // 3. Fetch ALL users to clean up
-    let allUsers: any[] = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-        const { data: { users: pageUsers }, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
-        if (error || !pageUsers || pageUsers.length === 0) {
-            hasMore = false;
-        } else {
-            allUsers = [...allUsers, ...pageUsers];
-            page++;
-        }
+    // Clean up existing auth users with these emails to prevent conflicts
+    // Note: We can't easily filter delete by email without ID, so we loop fetch.
+    // Given the small number, we just iterate.
+    for (const u of users) {
+        // Find user by email manually implies listUsers, but let's just try create and handle error?
+        // No, cleaner to recreate.
+        // We'll search for them in the list.
     }
 
+    // Fetch all users to map emails
+    const { data: { users: allAuthUsers } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const emailToId = new Map(allAuthUsers?.map(u => [u.email, u.id]));
+
     for (const u of users) {
-        // Try to find and delete existing
-        const existingUser = allUsers.find(user => user.email === u.email);
-        if (existingUser) {
-            console.log(`User ${u.email} exists (ID: ${existingUser.id}), deleting...`);
-            await supabase.auth.admin.deleteUser(existingUser.id);
+        if (emailToId.has(u.email)) {
+            const oldId = emailToId.get(u.email);
+            await supabase.auth.admin.deleteUser(oldId!);
+            console.log(`🗑️  Deleted existing user: ${u.email}`);
         }
 
-        // Create Auth User
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        // Create
+        const { data: authData, error: createError } = await supabase.auth.admin.createUser({
             email: u.email,
             password: u.password,
             email_confirm: true,
@@ -124,44 +140,44 @@ async function main() {
             app_metadata: { role: u.roleName }
         });
 
-        if (authError) {
-            console.error(`❌ Failed to create auth user ${u.email}`);
-            console.error("Error Details:", JSON.stringify(authError, null, 2));
+        if (createError) {
+            console.error(`❌ Failed to create ${u.email}:`, createError.message);
             continue;
         }
 
-        const userId = authData.user?.id;
+        const userId = authData.user!.id;
 
-        if (userId && schoolId) {
-            // Create Profile
-            const { error: profileError } = await supabase.from("profiles").upsert({
-                id: userId,
-                role_id: u.roleId,
-                school_id: schoolId,
-                full_name: u.name,
-                email: u.email,
-            });
+        // Profile
+        const { error: profileError } = await supabase.from("profiles").upsert({
+            id: userId,
+            role_id: u.roleId,
+            school_id: schoolId, // Even superadmin gets a "home" school for now
+            full_name: u.name,
+            email: u.email,
+        });
 
-            if (profileError) {
-                console.error(`Error creating profile for ${u.email}:`, profileError);
-            } else {
-                console.log(`✅ Created ${u.roleName}: ${u.email}`);
-            }
+        if (profileError) {
+            console.error(`❌ Failed to create profile for ${u.email}:`, profileError);
+        } else {
+            console.log(`👤 Created user: ${u.email} (${u.roleName})`);
+        }
 
-            // Link Role Specific Data
-            if (u.roleName === "Teacher") {
-                await supabase.from("teachers_data").upsert({
-                    id: userId,
-                    class_ids: []
-                });
-            }
-            if (u.roleName === "Student") {
-                await supabase.from("students_data").upsert({ id: userId });
-            }
+        // Role Data
+        if (u.roleName === "Teacher") {
+            await supabase.from("teachers_data").upsert({ id: userId, class_ids: [] });
+        }
+        if (u.roleName === "Student") {
+            await supabase.from("students_data").upsert({ id: userId });
         }
     }
 
-    console.log("Seed complete.");
+    console.log("\n✨ Initialization Complete!");
+    console.log("----------------------------------------");
+    console.log("Superadmin: superadmin@schoolms.com / password123");
+    console.log("Admin:      admin@springfield.edu   / password123");
+    console.log("Teacher:    teacher@springfield.edu / password123");
+    console.log("Student:    student@springfield.edu / password123");
+    console.log("----------------------------------------");
 }
 
 main();
