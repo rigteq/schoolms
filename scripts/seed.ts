@@ -150,7 +150,10 @@ async function main() {
 
             // Link Role Specific Data
             if (u.roleName === "Teacher") {
-                await supabase.from("teachers_data").upsert({ id: userId });
+                await supabase.from("teachers_data").upsert({
+                    id: userId,
+                    class_ids: []
+                });
             }
             if (u.roleName === "Student") {
                 await supabase.from("students_data").upsert({ id: userId });

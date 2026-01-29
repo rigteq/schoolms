@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -40,18 +40,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
+    // Use refs to avoid stale closures in event listeners
+    const profileRef = useRef(profile);
+    const mountedRef = useRef(false);
+
     useEffect(() => {
-        let mounted = true;
+        profileRef.current = profile;
+    }, [profile]);
+
+    useEffect(() => {
+        mountedRef.current = true;
 
         const fetchProfile = async (currentUser: User) => {
             if (!currentUser?.email) return;
 
             // Avoid re-fetching if we already have the profile for this user
-            if (profile?.email === currentUser.email) return;
+            if (profileRef.current?.email === currentUser.email) return;
 
             try {
                 // Only set loading if we don't have a profile yet (initial load)
-                if (!profile) setIsLoading(true);
+                if (!profileRef.current) setIsLoading(true);
 
                 const { data: profileData } = await supabase
                     .from("profiles")
@@ -59,56 +67,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .eq("email", currentUser.email)
                     .single();
 
-                if (mounted && profileData) {
+                if (mountedRef.current && profileData) {
                     setProfile(profileData);
                     setRole(profileData.roles?.role_name as Role);
                 }
             } catch (error) {
                 console.error("Profile fetch error:", error);
             } finally {
-                if (mounted) setIsLoading(false);
+                if (mountedRef.current) setIsLoading(false);
             }
         };
 
         const initializeAuth = async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                // Check active session
+                const { data: { session: initialSession } } = await supabase.auth.getSession();
 
-                if (mounted) {
-                    setSession(session);
-                    setUser(session?.user ?? null);
-                }
+                // Validate session with server (handles the case where user was deleted but token remains)
+                if (initialSession) {
+                    const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
 
-                if (session?.user) {
-                    await fetchProfile(session.user);
+                    if (userError || !validatedUser) {
+                        console.warn("Session invalid, signing out...", userError);
+                        await supabase.auth.signOut();
+                        if (mountedRef.current) {
+                            setSession(null);
+                            setUser(null);
+                            setProfile(null);
+                            setRole(null);
+                            setIsLoading(false);
+                        }
+                        return;
+                    }
+
+                    if (mountedRef.current) {
+                        setSession(initialSession);
+                        setUser(validatedUser);
+                        await fetchProfile(validatedUser);
+                    }
                 } else {
-                    if (mounted) setIsLoading(false);
+                    if (mountedRef.current) setIsLoading(false);
                 }
             } catch (error) {
                 console.error("Auth initialization error:", error);
-                if (mounted) setIsLoading(false);
+                if (mountedRef.current) setIsLoading(false);
             }
         };
 
         initializeAuth();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (!mounted) return;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            if (!mountedRef.current) return;
+            console.log("Auth Event:", event);
 
-            const currentUser = session?.user ?? null;
+            const currentUser = newSession?.user ?? null;
 
             // Update session and user whenever auth state changes
             setSession(session);
             setUser(currentUser);
+            if (event === 'SIGNED_OUT') {
+                setSession(null);
+                setUser(null);
+                setProfile(null);
+                setRole(null);
+                setIsLoading(false);
+                router.push("/");
+                return;
+            }
+
+            // Update session/user state
+            setSession(newSession);
+            setUser(currentUser);
 
             if (currentUser?.email) {
-                // Only fetch if we are switching users or don't have a profile
-                if (profile?.email !== currentUser.email) {
-                    await fetchProfile(currentUser);
-                } else {
-                    setIsLoading(false);
-                }
-            } else {
+                await fetchProfile(currentUser);
+            } else if (!currentUser) {
+                // If no user, ensure we clear profile
                 setProfile(null);
                 setRole(null);
                 setIsLoading(false);
@@ -116,13 +150,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         return () => {
-            mounted = false;
+            mountedRef.current = false;
             subscription.unsubscribe();
         };
-    }, []);
+    }, [router]);
 
     const signOut = async () => {
         await supabase.auth.signOut();
+        setProfile(null);
+        setRole(null);
         router.push("/");
     };
 

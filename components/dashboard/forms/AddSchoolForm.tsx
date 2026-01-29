@@ -6,15 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-
-// Manual validation for now instead of installing zod/hookform heavily
-// user didn't ask for validation library, but "Premium" implies it.
-// I'll stick to simple state for speed unless validation is complex.
-// Let's use simple state.
+import { toast } from "sonner";
 
 export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void }) {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         school_name: "",
@@ -26,19 +21,23 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setError(null);
 
         try {
             const { error: insertError } = await supabase
                 .from("schools")
                 .insert([formData]);
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                console.error("Supabase Error:", insertError);
+                throw new Error(insertError.message || "Failed to create school");
+            }
 
+            toast.success("School created successfully!");
             setFormData({ school_name: "", address: "", phone: "", email: "" });
             if (onSuccess) onSuccess();
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to add school");
+        } catch (err: any) {
+            console.error("Submission Error:", err);
+            toast.error(err.message || "Something went wrong. Please check console.");
         } finally {
             setLoading(false);
         }
@@ -46,11 +45,6 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-                <div className="text-red-500 text-sm p-2 bg-red-50 rounded border border-red-100">
-                    {error}
-                </div>
-            )}
             <div className="space-y-2">
                 <Label htmlFor="school_name">School Name</Label>
                 <Input
