@@ -1,170 +1,365 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Edit, Trash2, School, GraduationCap, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Plus, Trash2, UserPlus, BookOpen } from "lucide-react";
+import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 
-export default function ClassDetailPage() {
-    const { id } = useParams();
-    const router = useRouter();
+export default function ClassDetailsPage() {
+    const params = useParams();
+    const classId = params.id as string;
+    const { profile } = useAuth();
+
     const [classData, setClassData] = useState<any>(null);
     const [students, setStudents] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [mounted, setMounted] = useState(false);
 
-    useEffect(() => setMounted(true), []);
+    // Modal States
+    const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+    const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
+    const [availableStudents, setAvailableStudents] = useState<any[]>([]);
+    const [availableTeachers, setAvailableTeachers] = useState<any[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState("");
+    const [selectedTeacher, setSelectedTeacher] = useState("");
+    const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
-        async function fetchClassDetails() {
-            if (!id) return;
-            setLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from("classes")
-                    .select(`
-             *,
-             schools (school_name)
-          `)
-                    .eq("id", id)
-                    .single();
+        if (classId) {
+            fetchClassDetails();
+        }
+    }, [classId]);
 
-                if (error) throw error;
-                setClassData(data);
+    const fetchClassDetails = async () => {
+        setLoading(true);
+        try {
+            // 1. Fetch Class Info
+            const { data: cls, error: clsError } = await supabase
+                .from("classes")
+                .select("*, schools(school_name)")
+                .eq("id", classId)
+                .single();
 
-                const { data: studentsEnrollments } = await supabase
-                    .from("students_data")
-                    .select(`
-              student_id,
-              profiles:student_id (id, full_name, email)
-           `)
-                    .eq("class_id", id);
+            if (clsError) throw clsError;
+            setClassData(cls);
 
-                setStudents(studentsEnrollments?.map((s: any) => s.profiles) || []);
+            // 2. Fetch Students in this class
+            const { data: stud, error: studError } = await supabase
+                .from("students_data")
+                .select("*, profiles:id(full_name, email)")
+                .eq("class_id", classId);
 
-                const { data: teachersAssignments } = await supabase
-                    .from("teachers_data")
-                    .select(`
-              teacher_id,
-              subject_name,
-              profiles:teacher_id (id, full_name, email)
-           `)
-                    .eq("class_id", id);
+            if (studError) throw studError;
+            setStudents(stud || []);
 
-                setTeachers(teachersAssignments?.map((t: any) => ({ ...t.profiles, subject: t.subject_name })) || []);
+            // 3. Fetch Teachers (using distinct teachers_data filter requires array check)
+            // Postgres array contains: class_ids @> {classId}
+            const { data: teach, error: teachError } = await supabase
+                .from("teachers_data")
+                .select("*, profiles:id(full_name, email)")
+                .contains("class_ids", [classId]);
 
-            } catch (error) {
-                console.error("Error fetching class:", error);
-            } finally {
-                setLoading(false);
+            if (teachError) throw teachError;
+            setTeachers(teach || []);
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error("Failed to load class details");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchAvailableUsers = async (type: "student" | "teacher") => {
+        if (!profile?.school_id) return;
+
+        if (type === "student") {
+            // Fetch students NOT in a class or just all students in school to move them?
+            // Usually "Add Student" implies assigning a student who might be unassigned or moving them.
+            // Let's fetch all students in school for simplicity of selection.
+            const { data } = await supabase
+                .from("profiles")
+                .select("id, full_name, students_data!inner(class_id)") // Inner join to ensure they are students
+                .eq("school_id", profile.school_id)
+                .eq("roles.role_name", "Student"); // Assuming role link is standard, or check roles table. 
+            // Better: query students_data -> profiles
+
+            const { data: avail } = await supabase
+                .from("students_data")
+                .select("id, profiles:id(full_name, school_id)")
+                .filter("profiles.school_id", "eq", profile.school_id); // This might be tricky with RLS if not set up for generic filter
+
+            // Simpler: Fetch profiles with role Student in school
+            // We need role ID for student
+            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
+            if (roleData) {
+                const { data: studs } = await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("school_id", profile.school_id)
+                    .eq("role_id", roleData.id);
+                setAvailableStudents(studs || []);
+            }
+
+        } else {
+            // Fetch teachers in school
+            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
+            if (roleData) {
+                const { data: teachs } = await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("school_id", profile.school_id)
+                    .eq("role_id", roleData.id);
+                setAvailableTeachers(teachs || []);
             }
         }
+    };
 
-        fetchClassDetails();
-    }, [id]);
+    const handleAddStudent = async () => {
+        if (!selectedStudent) return;
+        setActionLoading(true);
+        try {
+            const { error } = await supabase
+                .from("students_data")
+                .update({ class_id: classId })
+                .eq("id", selectedStudent);
 
-    const handleDelete = async () => {
-        if (!confirm("Are you sure? This will soft delete the class.")) return;
-        await supabase.from("classes").update({ is_deleted: true }).eq("id", id);
-        router.push("/dashboard/classes");
-    }
+            if (error) throw error;
+            toast.success("Student added to class");
+            setIsAddStudentOpen(false);
+            fetchClassDetails();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
 
-    if (!mounted) return null;
-    if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    const handleAddTeacher = async () => {
+        if (!selectedTeacher) return;
+        setActionLoading(true);
+        try {
+            // First get current class_ids
+            const { data: current, error: fetchError } = await supabase
+                .from("teachers_data")
+                .select("class_ids")
+                .eq("id", selectedTeacher)
+                .single();
+
+            if (fetchError) throw fetchError;
+
+            const existingIds = current?.class_ids || [];
+            if (existingIds.includes(classId)) {
+                toast.error("Teacher is already assigned to this class");
+                return;
+            }
+
+            const newIds = [...existingIds, classId];
+            const { error: updateError } = await supabase
+                .from("teachers_data")
+                .update({ class_ids: newIds })
+                .eq("id", selectedTeacher);
+
+            if (updateError) throw updateError;
+
+            toast.success("Teacher assigned to class");
+            setIsAddTeacherOpen(false);
+            fetchClassDetails();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleRemoveStudent = async (studentId: string) => {
+        if (!confirm("Remove this student from the class?")) return;
+        try {
+            const { error } = await supabase
+                .from("students_data")
+                .update({ class_id: null })
+                .eq("id", studentId);
+            if (error) throw error;
+            toast.success("Student removed");
+            fetchClassDetails();
+        } catch (err: any) {
+            toast.error(err.message);
+        }
+    };
+
+    const handleRemoveTeacher = async (teacherId: string) => {
+        if (!confirm("Remove this teacher from the class?")) return;
+        try {
+            const { data: current } = await supabase
+                .from("teachers_data")
+                .select("class_ids")
+                .eq("id", teacherId)
+                .single();
+
+            const newIds = (current?.class_ids || []).filter((id: string) => id !== classId);
+
+            const { error } = await supabase
+                .from("teachers_data")
+                .update({ class_ids: newIds })
+                .eq("id", teacherId);
+            if (error) throw error;
+            toast.success("Teacher removed");
+            fetchClassDetails();
+        } catch (err: any) {
+            toast.error(err.message);
+        }
+    };
+
+    if (loading) return <div className="flex h-96 justify-center items-center"><Loader2 className="animate-spin" /></div>;
     if (!classData) return <div>Class not found</div>;
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" onClick={() => router.push("/dashboard/classes")} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Classes
-            </Button>
-
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">{classData.class_name}</h1>
-                    <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                        <span className="flex items-center gap-1"><School className="h-4 w-4" /> {classData.schools?.school_name}</span>
-                        <span>•</span>
-                        <span>{classData.academic_year}</span>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Class</Button>
-                    <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                    <h2 className="text-3xl font-bold tracking-tight">{classData.class_name}</h2>
+                    <p className="text-muted-foreground">{classData.schools?.school_name} • {classData.academic_year}</p>
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid md:grid-cols-2 gap-6">
+                {/* Teachers Section */}
                 <Card>
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-sm font-medium">Students Enrolled</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-xl">Teachers</CardTitle>
+                        <Dialog open={isAddTeacherOpen} onOpenChange={(open) => {
+                            setIsAddTeacherOpen(open);
+                            if (open) fetchAvailableUsers('teacher');
+                        }}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" className="gap-2">
+                                    <Plus className="h-4 w-4" /> Add Teacher
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Assign Teacher to Class</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Select Teacher</Label>
+                                        <Select onValueChange={setSelectedTeacher}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a teacher..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableTeachers.map(t => (
+                                                    <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button onClick={handleAddTeacher} disabled={actionLoading} className="w-full">
+                                        {actionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : "Assign Teacher"}
+                                    </Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{students.length}</div>
+                        {teachers.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-4">No teachers assigned.</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {teachers.map((t) => (
+                                    <div key={t.id} className="flex items-center justify-between border p-3 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <BookOpen className="h-4 w-4 text-primary" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">{t.profiles?.full_name}</p>
+                                                <p className="text-xs text-muted-foreground">{t.subject_specialization || "General"}</p>
+                                            </div>
+                                        </div>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => handleRemoveTeacher(t.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-sm font-medium">Teachers Assigned</CardTitle>
-                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{teachers.length}</div>
-                    </CardContent>
-                </Card>
-            </div>
 
-            <div className="bg-transparent">
-                <Tabs defaultValue="students" className="w-full">
-                    <TabsList className="bg-white shadow-sm rounded-lg p-1">
-                        <TabsTrigger value="students">Students</TabsTrigger>
-                        <TabsTrigger value="teachers">Teachers</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="students" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Class Roster</div>
-                                <div className="divide-y">
-                                    {students.map(s => (
-                                        <div key={s.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/students/${s.id}`)}>
-                                            <div>
-                                                <p className="font-medium">{s.full_name}</p>
-                                                <p className="text-sm text-muted-foreground">{s.email}</p>
-                                            </div>
-                                            <Badge variant="outline">Student</Badge>
-                                        </div>
-                                    ))}
-                                    {students.length === 0 && <div className="p-4 text-center text-muted-foreground">No students enrolled.</div>}
+                {/* Students Section */}
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-xl">Students ({students.length})</CardTitle>
+                        <Dialog open={isAddStudentOpen} onOpenChange={(open) => {
+                            setIsAddStudentOpen(open);
+                            if (open) fetchAvailableUsers('student');
+                        }}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" className="gap-2">
+                                    <Plus className="h-4 w-4" /> Add Student
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Add Student to Class</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label>Select Student</Label>
+                                        <Select onValueChange={setSelectedStudent}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a student..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableStudents.map(s => (
+                                                    <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button onClick={handleAddStudent} disabled={actionLoading} className="w-full">
+                                        {actionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : "Add Student"}
+                                    </Button>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="teachers" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Teachers List</div>
-                                <div className="divide-y">
-                                    {teachers.map(t => (
-                                        <div key={t.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/teachers/${t.id}`)}>
-                                            <div>
-                                                <p className="font-medium">{t.full_name}</p>
-                                                <p className="text-sm text-muted-foreground">{t.email}</p>
+                            </DialogContent>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent>
+                        {students.length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-4">No students enrolled.</p>
+                        ) : (
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                {students.map((s) => (
+                                    <div key={s.id} className="flex items-center justify-between border p-3 rounded-lg">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                                <UserPlus className="h-4 w-4 text-green-600" />
                                             </div>
-                                            <Badge variant="secondary">{t.subject || "Teacher"}</Badge>
+                                            <div>
+                                                <p className="font-medium text-sm">{s.profiles?.full_name}</p>
+                                                <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
+                                            </div>
                                         </div>
-                                    ))}
-                                    {teachers.length === 0 && <div className="p-4 text-center text-muted-foreground">No teachers assigned.</div>}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => handleRemoveStudent(s.id)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );

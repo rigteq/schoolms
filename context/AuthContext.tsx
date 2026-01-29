@@ -17,6 +17,9 @@ interface AuthContextType {
         role_id: string;
         school_id: string;
         roles: { role_name: string };
+        phone?: string;
+        current_address?: string;
+        permanent_address?: string;
     } | null;
     role: Role;
     isLoading: boolean;
@@ -35,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role_id: string;
         school_id: string;
         roles: { role_name: string };
+        phone?: string;
+        current_address?: string;
+        permanent_address?: string;
     } | null>(null);
     const [role, setRole] = useState<Role>(null);
     const [isLoading, setIsLoading] = useState(true);

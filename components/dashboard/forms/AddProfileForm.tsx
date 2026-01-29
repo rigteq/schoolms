@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { createUserWithRole } from "@/app/actions/user-actions";
 import { getAgeValidationError, getMaxDate, getMinDate } from "@/lib/utils/validation";
+import { toast } from "sonner";
 
 interface AddProfileFormProps {
     roleName: "Teacher" | "Student";
@@ -45,7 +46,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const dob = e.target.value;
         setFormData({ ...formData, dob });
-        
+
         const ageError = getAgeValidationError(dob, 4, 120);
         setDobError(ageError);
     };
@@ -56,21 +57,25 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
         if (!schoolIdToUse) {
             setError("Please select a school");
+            toast.error("Please select a school");
             return;
         }
 
         if (!formData.password || formData.password.length < 6) {
             setError("Password must be at least 6 characters");
+            toast.error("Password must be at least 6 characters");
             return;
         }
 
         if (!formData.dob) {
             setError("Date of birth is required");
+            toast.error("Date of birth is required");
             return;
         }
 
         if (dobError) {
             setError(dobError);
+            toast.error(dobError);
             return;
         }
 
@@ -87,11 +92,13 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
             if (!result.success) throw new Error(result.error);
 
+            toast.success(`${roleName} created successfully!`);
             setFormData({ school_id: defaultSchoolId || "", full_name: "", email: "", password: "", phone: "", current_address: "", dob: "" });
             setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || `Failed to add ${roleName}`);
+            toast.error(err.message || `Failed to add ${roleName}`);
         } finally {
             setLoading(false);
         }
@@ -115,7 +122,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         <SelectTrigger>
                             <SelectValue placeholder="Select a school" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white">
+                        <SelectContent>
                             {schools.map(school => (
                                 <SelectItem key={school.id} value={school.id}>
                                     {school.school_name}

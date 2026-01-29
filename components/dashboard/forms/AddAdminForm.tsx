@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createUserWithRole } from "@/app/actions/user-actions";
 import { getAgeValidationError, getMaxDate, getMinDate } from "@/lib/utils/validation";
@@ -28,7 +29,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const dob = e.target.value;
         setFormData({ ...formData, dob });
-        
+
         const ageError = getAgeValidationError(dob, 4, 120);
         setDobError(ageError);
     };
@@ -45,18 +46,22 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         e.preventDefault();
         if (!formData.school_id) {
             setError("Please select a school");
+            toast.error("Please select a school");
             return;
         }
         if (!formData.password || formData.password.length < 6) {
             setError("Password must be at least 6 characters");
+            toast.error("Password must be at least 6 characters");
             return;
         }
         if (!formData.dob) {
             setError("Date of birth is required");
+            toast.error("Date of birth is required");
             return;
         }
         if (dobError) {
             setError(dobError);
+            toast.error(dobError);
             return;
         }
 
@@ -71,12 +76,14 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
 
             if (!result.success) throw new Error(result.error);
 
+            toast.success("Admin created successfully!");
             setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "" });
             setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
             console.error(err);
             setError(err.message || "Failed to add admin");
+            toast.error(err.message || "Failed to add admin");
         } finally {
             setLoading(false);
         }
@@ -99,7 +106,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                     <SelectTrigger>
                         <SelectValue placeholder="Select a school" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white">
+                    <SelectContent>
                         {schools.map(school => (
                             <SelectItem key={school.id} value={school.id}>
                                 {school.school_name}

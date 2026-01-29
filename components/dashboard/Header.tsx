@@ -3,6 +3,7 @@
 import { Menu, Bell, User, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -55,9 +56,11 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-white z-50 border border-gray-100 shadow-xl">
-                        <DropdownMenuItem className="focus:bg-gray-50 cursor-pointer">
-                            <User className="mr-2 h-4 w-4" />
-                            <span>Profile</span>
+                        <DropdownMenuItem asChild className="focus:bg-gray-50 cursor-pointer">
+                            <Link href="/dashboard/profile" className="flex items-center w-full">
+                                <User className="mr-2 h-4 w-4" />
+                                <span>Profile</span>
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                             <SettingsIcon className="mr-2 h-4 w-4" />

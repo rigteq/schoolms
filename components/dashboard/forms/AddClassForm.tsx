@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface AddClassFormProps {
     onSuccess?: () => void;
@@ -37,9 +38,10 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const schoolIdToUse = defaultSchoolId || formData.school_id;
-        
+
         if (!schoolIdToUse) {
             setError("Please select a school");
+            toast.error("Please select a school");
             return;
         }
         setLoading(true);
@@ -52,10 +54,12 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
 
             if (insertError) throw insertError;
 
+            toast.success("Class created successfully!");
             setFormData({ school_id: defaultSchoolId || "", class_name: "", academic_year: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1) });
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || "Failed to add class");
+            toast.error(err.message || "Failed to add class");
         } finally {
             setLoading(false);
         }
@@ -79,9 +83,9 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
                         <SelectTrigger>
                             <SelectValue placeholder="Select a school" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white">
                             {schools.map(school => (
-                                <SelectItem key={school.id} value={school.id}>
+                                <SelectItem key={school.id} value={school.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
                                     {school.school_name}
                                 </SelectItem>
                             ))}
