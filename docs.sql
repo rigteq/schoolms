@@ -253,3 +253,77 @@ USING (
         WHERE p.id = students_data.id AND p.school_id = public.get_my_school_id()
     )
 );
+
+-- ==============================================================================
+-- 5. LEAVE MANAGEMENT
+-- ==============================================================================
+
+CREATE TABLE leave_details (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    leave_type TEXT CHECK (leave_type IN ('global', 'lwp', 'sl', 'cl', 'el')),
+    leave_date_from DATE NOT NULL,
+    leave_date_to DATE NOT NULL,
+    leave_comment TEXT,
+    profile_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
+    status TEXT CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+    created_time TIMESTAMPTZ DEFAULT NOW(),
+    edited_time TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indices
+CREATE INDEX idx_leave_details_school ON leave_details(school_id);
+CREATE INDEX idx_leave_details_profile ON leave_details(profile_id);
+CREATE INDEX idx_leave_details_dates ON leave_details(leave_date_from, leave_date_to);
+
+-- RLS Policies
+ALTER TABLE leave_details ENABLE ROW LEVEL SECURITY;
+
+-- 1. Superadmin: Full Access
+CREATE POLICY "Superadmin manage leaves" ON leave_details FOR ALL TO authenticated
+USING ( public.get_my_role() = 'Superadmin' );
+
+-- 2. Admin: 
+--    - View all leaves in their school
+--    - Create Global holidays (leave_type = 'global')
+--    - Approve/Reject leaves (Update status)
+--    - Create their own leaves? (prompt says "Apply leave" in Admin dashboard too)
+CREATE POLICY "Admin manage school leaves" ON leave_details FOR ALL TO authenticated
+USING ( 
+    school_id = public.get_my_school_id() 
+    AND public.get_my_role() = 'Admin'
+);
+
+-- 3. Teacher/Student:
+--    - View their own leaves
+--    - View Global holidays (leave_type = 'global' AND school_id = my_school)
+--    - Create their own leaves
+CREATE POLICY "Users view own leaves and globals" ON leave_details FOR SELECT TO authenticated
+USING (
+    (profile_id = auth.uid()) OR 
+    (leave_type = 'global' AND school_id = public.get_my_school_id())
+);
+
+CREATE POLICY "Users create own leaves" ON leave_details FOR INSERT TO authenticated
+WITH CHECK (
+    profile_id = auth.uid() AND
+    school_id = public.get_my_school_id() AND
+    leave_type != 'global' -- Regular users can't create global holidays
+);
+
+-- Allow users to update their own PENDING leaves? Or only Admin updates status?
+-- Usually users can cancel/edit pending leaves. 
+-- For now, let's restrict update to Admin (for status) and maybe owner if pending?
+-- Prompt implies Admin approves/rejects. 
+-- Let's allow users to edit their own leaves if pending, but maybe keep it simple for now as per prompt "Admin... show approve,reject button".
+-- I will stick to Admin managing it. If user needs to edit, they might need to delete and re-apply or we add logic later. 
+-- Wait, if an Admin applies for leave, who approves? Self-approval? The prompt defaults Admin leaves to 'approved'.
+-- So Admins can INSERT with status='approved'.
+-- Regular users INSERT with status='pending'.
+
+-- We need a policy for Update.
+CREATE POLICY "Users update own pending leaves" ON leave_details FOR UPDATE TO authenticated
+USING (
+    profile_id = auth.uid() AND status = 'pending'
+);
+
