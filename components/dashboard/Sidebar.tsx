@@ -143,7 +143,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
 
                                     {/* Sub Items */}
                                     {hasSubItems && isExpanded && !isCollapsed && (
-                                        <div className="ml-9 mt-1 space-y-1">
+                                        <div className="ml-9 mt-1.5 flex flex-col gap-1">
                                             {link.subItems?.map((subItem) => {
                                                 const SubIcon = subItem.icon;
                                                 const isSubActive = pathname === subItem.href;
@@ -153,13 +153,13 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
                                                         href={subItem.href}
                                                         onClick={() => onClose()}
                                                         className={cn(
-                                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors block",
+                                                            "flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all duration-200 w-fit min-w-[160px]",
                                                             isSubActive
-                                                                ? "text-blue-700 font-medium"
-                                                                : "text-gray-500 hover:text-gray-900"
+                                                                ? "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                                                                : "text-gray-500 hover:text-gray-900 hover:bg-gray-50 hover:pl-3"
                                                         )}
                                                     >
-                                                        <SubIcon className="h-4 w-4" />
+                                                        <SubIcon className={cn("h-4 w-4 shrink-0", isSubActive ? "text-blue-600" : "text-gray-400")} />
                                                         <span>{subItem.name}</span>
                                                     </Link>
                                                 );
