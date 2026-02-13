@@ -34,54 +34,54 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
     const { role, signOut } = useAuth();
 
     return (
-        <header className="h-16 bg-white/80 backdrop-blur top-0 sticky z-30 flex items-center justify-between px-6 shadow-sm">
+        <header className="h-16 glass sticky top-0 z-30 flex items-center justify-between px-6 border-b border-indigo-100/20">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}
-                    className="p-2 -ml-2 rounded-md hover:bg-gray-100 lg:hidden text-gray-600"
+                    className="p-2 -ml-2 rounded-lg hover:bg-indigo-50 lg:hidden text-indigo-600 hover:text-indigo-700 transition-all duration-200"
                 >
                     <Menu className="h-5 w-5" />
                 </button>
 
                 <button
                     onClick={onToggleSidebar}
-                    className="p-2 rounded-md hover:bg-gray-100 hidden lg:block text-gray-600"
+                    className="p-2 rounded-lg hover:bg-indigo-50 hidden lg:block text-indigo-600 hover:text-indigo-700 transition-all duration-200"
                 >
                     {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
                 </button>
 
                 <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center text-white font-bold text-lg">S</div>
-                    <span className="font-bold text-xl tracking-tight text-gray-900 hidden sm:block">SchoolMS</span>
+                    <div className="h-8 w-8 bg-gradient-to-br from-indigo-600 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-xl transition-shadow">S</div>
+                    <span className="font-bold text-xl tracking-tight gradient-text-primary hidden sm:block">SchoolMS</span>
                 </div>
             </div>
 
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="text-gray-500">
+                <Button variant="ghost" size="icon" className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200">
                     <Bell className="h-5 w-5" />
                 </Button>
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-gray-50 outline-none hover:ring-blue-100 transition-all">
+                        <button className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-indigo-50 outline-none hover:ring-indigo-200 transition-all duration-200 cursor-pointer hover:shadow-lg">
                             {role ? role.charAt(0) : 'U'}
                         </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 bg-white z-50 border border-gray-100 shadow-xl">
-                        <DropdownMenuItem asChild className="focus:bg-gray-50 cursor-pointer">
-                            <Link href="/dashboard/profile" className="flex items-center w-full">
-                                <User className="mr-2 h-4 w-4" />
+                    <DropdownMenuContent align="end" className="w-56 bg-white z-50 border border-indigo-100 shadow-xl rounded-lg">
+                        <DropdownMenuItem asChild className="focus:bg-indigo-50 cursor-pointer">
+                            <Link href="/dashboard/profile" className="flex items-center w-full text-indigo-700 focus:text-indigo-800">
+                                <User className="mr-2 h-4 w-4 text-indigo-600" />
                                 <span>Profile</span>
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                            <SettingsIcon className="mr-2 h-4 w-4" />
+                        <DropdownMenuItem className="text-indigo-700 focus:bg-indigo-50 focus:text-indigo-800 cursor-pointer">
+                            <SettingsIcon className="mr-2 h-4 w-4 text-indigo-600" />
                             <span>Settings</span>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        <DropdownMenuSeparator className="bg-indigo-100" />
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer">
                                     <span>Log out</span>
                                 </DropdownMenuItem>
                             </AlertDialogTrigger>

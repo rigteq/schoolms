@@ -12,7 +12,7 @@ export default function StudentDashboard() {
     if (isLoading) {
         return (
             <div className="h-full w-full flex items-center justify-center min-h-[50vh]">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -22,29 +22,29 @@ export default function StudentDashboard() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Student Dashboard</h2>
-                    <p className="text-muted-foreground">Track your academic progress.</p>
+                    <h2 className="text-4xl font-bold gradient-text-primary tracking-tight">Student Dashboard</h2>
+                    <p className="text-slate-600 mt-2">Track your academic progress.</p>
                 </div>
             </div>
 
             {/* Student Info Card */}
-            <Card>
+            <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                 <CardHeader>
-                    <CardTitle>Your Profile</CardTitle>
+                    <CardTitle className="gradient-text-primary">Your Profile</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4 md:grid-cols-3">
                         <div>
-                            <p className="text-sm text-muted-foreground">Name</p>
-                            <p className="text-lg font-semibold">{profile?.full_name || "N/A"}</p>
+                            <p className="text-sm text-slate-600">Name</p>
+                            <p className="text-lg font-semibold text-slate-900">{profile?.full_name || "N/A"}</p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Email</p>
-                            <p className="text-lg font-semibold">{profile?.email || "N/A"}</p>
+                            <p className="text-sm text-slate-600">Email</p>
+                            <p className="text-lg font-semibold text-slate-900">{profile?.email || "N/A"}</p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Role</p>
-                            <p className="text-lg font-semibold">Student</p>
+                            <p className="text-sm text-slate-600">Role</p>
+                            <p className="text-lg font-semibold text-slate-900">Student</p>
                         </div>
                     </div>
                 </CardContent>
@@ -57,39 +57,35 @@ export default function StudentDashboard() {
                     value="0"
                     icon={BookOpen}
                     description="Enrolled classes"
-                    color="text-blue-600"
-                    bg="bg-blue-100"
+                    color="from-blue-600 to-cyan-500"
                 />
                 <StatsCard
                     title="Current GPA"
                     value="--"
                     icon={Award}
                     description="Overall performance"
-                    color="text-green-600"
-                    bg="bg-green-100"
+                    color="from-green-500 to-emerald-500"
                 />
                 <StatsCard
                     title="Pending Assignments"
                     value="0"
                     icon={Clock}
                     description="To be submitted"
-                    color="text-orange-600"
-                    bg="bg-orange-100"
+                    color="from-orange-500 to-red-500"
                 />
                 <StatsCard
                     title="Completed Tasks"
                     value="0"
                     icon={GraduationCap}
                     description="This semester"
-                    color="text-purple-600"
-                    bg="bg-purple-100"
+                    color="from-purple-600 to-pink-500"
                 />
             </div>
 
             {/* Navigation Links */}
-            <Card>
+            <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                 <CardHeader>
-                    <CardTitle>Learning Resources</CardTitle>
+                    <CardTitle className="gradient-text-primary">Learning Resources</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4 md:grid-cols-2">
@@ -102,18 +98,19 @@ export default function StudentDashboard() {
     );
 }
 
-function StatsCard({ title, value, icon: Icon, description, color, bg }: any) {
+function StatsCard({ title, value, icon: Icon, description, color }: any) {
     return (
-        <Card className="hover-card">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <div className={`${bg} p-2 rounded-full`}>
-                    <Icon className={`h-4 w-4 ${color}`} />
+        <Card className="hover-card border-indigo-100 bg-white/80 backdrop-blur overflow-hidden relative group">
+            <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
+                <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
+                <div className={`bg-gradient-to-br ${color} p-2 rounded-lg`}>
+                    <Icon className="h-5 w-5 text-white" />
                 </div>
             </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                <p className="text-xs text-muted-foreground">{description}</p>
+            <CardContent className="relative">
+                <div className="text-3xl font-bold text-slate-900">{value}</div>
+                <p className="text-xs text-slate-600 mt-1">{description}</p>
             </CardContent>
         </Card>
     );
@@ -126,12 +123,14 @@ function NavLink({ href, icon: Icon, title, description }: {
     description: string;
 }) {
     return (
-        <a href={href} className="block p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-all">
+        <a href={href} className="block p-4 border-2 border-indigo-100 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all group bg-white/80">
             <div className="flex items-center gap-3">
-                <Icon className="h-6 w-6 text-primary" />
+                <div className="p-2 bg-gradient-to-br from-indigo-600 to-cyan-500 rounded-lg">
+                    <Icon className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                    <p className="font-semibold">{title}</p>
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                    <p className="font-semibold text-slate-900">{title}</p>
+                    <p className="text-sm text-slate-600">{description}</p>
                 </div>
             </div>
         </a>

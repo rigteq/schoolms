@@ -52,17 +52,17 @@ export default function TeachersPage() {
     const totalPages = Math.ceil(displayTotal / ITEMS_PER_PAGE);
 
     const Pagination = () => (
-        <div className="flex items-center justify-between px-2">
-            <div className="text-sm text-muted-foreground">
+        <div className="flex items-center justify-between px-2 mt-6">
+            <div className="text-sm text-slate-600">
                 Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, displayTotal)} of {displayTotal} results
             </div>
             <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
-                    <ChevronLeft className="h-4 w-4" />
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="border-indigo-100">
+                    <ChevronLeft className="h-4 w-4 text-indigo-600" />
                 </Button>
-                <div className="text-sm font-medium">Page {page} of {totalPages || 1}</div>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0}>
-                    <ChevronRight className="h-4 w-4" />
+                <div className="text-sm font-medium text-slate-700">Page {page} of {totalPages || 1}</div>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0} className="border-indigo-100">
+                    <ChevronRight className="h-4 w-4 text-indigo-600" />
                 </Button>
             </div>
         </div>
@@ -72,17 +72,17 @@ export default function TeachersPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Teachers</h1>
-                    <p className="text-muted-foreground">{isAdmin ? "Manage teachers in your school." : "Manage all teachers across schools."}</p>
+                    <h1 className="text-4xl font-bold gradient-text-primary tracking-tight">Teachers</h1>
+                    <p className="text-slate-600 mt-2">{isAdmin ? "Manage teachers in your school." : "Manage all teachers across schools."}</p>
                 </div>
                 {(isAdmin || role === "Superadmin") && (
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button className="shrink-0"><Plus className="mr-2 h-4 w-4" /> Add Teacher</Button>
+                            <Button className="shrink-0 gradient-btn"><Plus className="mr-2 h-4 w-4" /> Add Teacher</Button>
                         </DialogTrigger>
                         <DialogContent className="max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
-                                <DialogTitle>Onboard New Teacher</DialogTitle>
+                                <DialogTitle className="gradient-text-primary">Onboard New Teacher</DialogTitle>
                             </DialogHeader>
                             <div className="p-4">
                                 <AddProfileForm roleName="Teacher" defaultSchoolId={isAdmin ? schoolId : undefined} onSuccess={() => displayMutate()} />
@@ -92,23 +92,23 @@ export default function TeachersPage() {
                 )}
             </div>
 
-            <Card className="border-none shadow-sm">
-                <CardHeader className="pb-3 border-none">
+            <Card className="border-indigo-100 bg-white/80 backdrop-blur">
+                <CardHeader className="pb-3 border-b border-indigo-100/30">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">All Teachers</CardTitle>
+                        <CardTitle className="text-lg gradient-text-primary">All Teachers</CardTitle>
                         <div className="relative w-full max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-indigo-600" />
                             <Input type="search" placeholder="Search teachers..." className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                     {displayLoading ? (
-                        <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                        <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-indigo-600" /></div>
                     ) : (
                         <Table>
                             <TableHeader className="border-none">
-                                <TableRow className="border-b border-gray-100 hover:bg-transparent">
+                                <TableRow className="border-b border-indigo-100 hover:bg-transparent">
                                     <TableHead>Name</TableHead>
                                     <TableHead>Subject</TableHead>
                                     <TableHead>Contact</TableHead>

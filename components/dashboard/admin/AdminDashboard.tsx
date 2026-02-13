@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     if (authLoading || statsLoading) {
         return (
             <div className="h-full w-full flex items-center justify-center min-h-[50vh]">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -39,42 +39,42 @@ export default function AdminDashboard() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
-                    <p className="text-muted-foreground">Manage {schoolName} data and users.</p>
+                    <h2 className="text-4xl font-bold gradient-text-primary tracking-tight">Admin Dashboard</h2>
+                    <p className="text-slate-600 mt-2">Manage {schoolName} data and users.</p>
                 </div>
             </div>
 
             {/* Stats Overview */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard title="Total Teachers" value={stats.teachers} icon={GraduationCap} />
-                <StatsCard title="Active Students" value={stats.students} icon={Users} />
-                <StatsCard title="Total Classes" value={stats.classes} icon={BookOpen} />
-                <StatsCard title="School Profile" value={schoolName} icon={BarChart3} isText />
+                <StatsCard title="Total Teachers" value={stats.teachers} icon={GraduationCap} color="from-indigo-500 to-purple-500" />
+                <StatsCard title="Active Students" value={stats.students} icon={Users} color="from-cyan-500 to-blue-500" />
+                <StatsCard title="Total Classes" value={stats.classes} icon={BookOpen} color="from-orange-500 to-red-500" />
+                <StatsCard title="School Profile" value={schoolName} icon={BarChart3} isText color="from-green-500 to-emerald-500" />
             </div>
 
             {/* Quick Actions */}
             <div>
-                <h3 className="text-xl font-semibold mb-4">Quick Actions</h3>
+                <h3 className="text-2xl font-bold gradient-text-primary mb-4">Quick Actions</h3>
                 <div className="grid gap-4 md:grid-cols-3">
                     <ActionCard
                         title="Add Teacher"
                         icon={GraduationCap}
                         description="Onboard a new teacher"
-                        trigger={<Button className="w-full">Add Teacher</Button>}
+                        trigger={<Button className="w-full gradient-btn">Add Teacher</Button>}
                         content={<AddProfileForm roleName="Teacher" defaultSchoolId={schoolId} />}
                     />
                     <ActionCard
                         title="Add Student"
                         icon={Users}
                         description="Enroll a new student"
-                        trigger={<Button className="w-full">Add Student</Button>}
+                        trigger={<Button className="w-full gradient-btn-success">Add Student</Button>}
                         content={<AddProfileForm roleName="Student" defaultSchoolId={schoolId} />}
                     />
                     <ActionCard
                         title="Create Class"
                         icon={BookOpen}
                         description="Create a new class"
-                        trigger={<Button className="w-full">Create Class</Button>}
+                        trigger={<Button className="w-full gradient-btn-accent">Create Class</Button>}
                         content={<AddClassForm defaultSchoolId={schoolId} />}
                     />
                 </div>
@@ -83,17 +83,20 @@ export default function AdminDashboard() {
     );
 }
 
-function StatsCard({ title, value, icon: Icon, isText = false }: { title: string, value: string | number, icon: any, isText?: boolean }) {
+function StatsCard({ title, value, icon: Icon, isText = false, color = "from-indigo-500 to-cyan-500" }: { title: string, value: string | number, icon: any, isText?: boolean, color?: string }) {
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+        <Card className="hover-card border-indigo-100 bg-white/80 backdrop-blur overflow-hidden relative group">
+            <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
+                <CardTitle className="text-sm font-medium text-slate-700">
                     {title}
                 </CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+                <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center`}>
+                    <Icon className="h-5 w-5 text-white" />
+                </div>
             </CardHeader>
-            <CardContent>
-                <div className={`text-2xl font-bold ${isText ? "text-lg truncate" : ""}`}>{value}</div>
+            <CardContent className="relative">
+                <div className={`text-3xl font-bold text-slate-900 ${isText ? "text-lg truncate" : ""}`}>{value}</div>
             </CardContent>
         </Card>
     );
@@ -108,23 +111,28 @@ function ActionCard({ title, icon: Icon, description, trigger, content }: {
 }) {
     return (
         <Dialog>
-            <Card className="hover-card cursor-pointer transition-all hover:shadow-md">
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <Icon className="h-5 w-5 text-primary" />
-                        <CardTitle className="text-base">{title}</CardTitle>
+            <Card className="hover-card border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 cursor-pointer transition-all hover:shadow-lg group overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                <CardHeader className="relative">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500">
+                            <Icon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base text-slate-900">{title}</CardTitle>
+                            <CardDescription className="text-slate-600">{description}</CardDescription>
+                        </div>
                     </div>
-                    <CardDescription>{description}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative">
                     <DialogTrigger asChild>
                         {trigger}
                     </DialogTrigger>
                 </CardContent>
             </Card>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
+                    <DialogTitle className="gradient-text-primary">{title}</DialogTitle>
                 </DialogHeader>
                 <div className="p-4">
                     {content}

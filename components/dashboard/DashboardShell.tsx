@@ -9,7 +9,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
 
     return (
-        <div className="flex min-h-screen bg-gray-50/50">
+        <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-cyan-50">
             <Sidebar
                 isOpen={isSidebarOpen}
                 isCollapsed={isDesktopCollapsed}
