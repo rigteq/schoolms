@@ -74,7 +74,7 @@ export default function TeacherDashboard() {
     if (authLoading || loading) {
         return (
             <div className="h-full w-full flex items-center justify-center min-h-[50vh]">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
             </div>
         );
     }
@@ -84,15 +84,15 @@ export default function TeacherDashboard() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h2>
-                    <p className="text-muted-foreground">Manage your assigned classes and students.</p>
+                    <h2 className="text-4xl font-bold gradient-text-primary tracking-tight">Teacher Dashboard</h2>
+                    <p className="text-slate-600 mt-2">Manage your assigned classes and students.</p>
                 </div>
             </div>
 
             {/* Teacher Info Card */}
-            <Card>
+            <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                 <CardHeader>
-                    <CardTitle>Welcome back, {profile?.full_name}</CardTitle>
+                    <CardTitle className="gradient-text-primary">Welcome back, {profile?.full_name}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4 md:grid-cols-3">

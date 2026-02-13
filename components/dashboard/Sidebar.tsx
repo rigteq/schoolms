@@ -82,13 +82,13 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
             {/* Sidebar Container */}
             <aside
                 className={cn(
-                    "fixed top-0 left-0 z-50 h-screen bg-white shadow-xl transition-all duration-300 transform lg:sticky border-r border-gray-200 overflow-y-auto",
+                    "fixed top-0 left-0 z-50 h-screen bg-gradient-to-b from-white via-indigo-50/30 to-white shadow-2xl transition-all duration-300 transform lg:sticky border-r border-indigo-100 overflow-y-auto",
                     isOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
                     isCollapsed ? "lg:w-0 lg:p-0 border-none" : "lg:w-64"
                 )}
             >
                 <div className="flex items-center justify-end h-16 px-6 mb-4 lg:hidden">
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={onClose} className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 p-1 rounded-md transition-all">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
@@ -111,18 +111,21 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
                                         <button
                                             onClick={() => toggleSubMenu(link.name)}
                                             className={cn(
-                                                "w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                                                "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
                                                 isActive
-                                                    ? "bg-blue-50 text-blue-700"
-                                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                    ? "bg-gradient-to-r from-indigo-100 to-cyan-100 text-indigo-700 shadow-md"
+                                                    : "text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <Icon className={cn("h-5 w-5 flex-shrink-0", isActive ? "text-blue-600" : "text-gray-400")} />
+                                                <Icon className={cn(
+                                                    "h-5 w-5 flex-shrink-0 transition-all",
+                                                    isActive ? "text-indigo-600" : "text-cyan-500 group-hover:text-indigo-600"
+                                                )} />
                                                 {!isCollapsed && <span>{link.name}</span>}
                                             </div>
                                             {!isCollapsed && (
-                                                isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                                                isExpanded ? <ChevronDown className="h-4 w-4 text-indigo-600" /> : <ChevronRight className="h-4 w-4 text-slate-400" />
                                             )}
                                         </button>
                                     ) : (
@@ -130,20 +133,23 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
                                             href={link.href}
                                             onClick={() => onClose()}
                                             className={cn(
-                                                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                                                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap group",
                                                 isActive
-                                                    ? "bg-blue-50 text-blue-700"
-                                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                    ? "bg-gradient-to-r from-indigo-100 to-cyan-100 text-indigo-700 shadow-md"
+                                                    : "text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
                                             )}
                                         >
-                                            <Icon className={cn("h-5 w-5 flex-shrink-0", isActive ? "text-blue-600" : "text-gray-400")} />
+                                            <Icon className={cn(
+                                                "h-5 w-5 flex-shrink-0 transition-all",
+                                                isActive ? "text-indigo-600" : "text-cyan-500 group-hover:text-indigo-600"
+                                            )} />
                                             {!isCollapsed && <span>{link.name}</span>}
                                         </Link>
                                     )}
 
                                     {/* Sub Items */}
                                     {hasSubItems && isExpanded && !isCollapsed && (
-                                        <div className="ml-9 mt-1 space-y-1">
+                                        <div className="ml-9 mt-1 space-y-1 border-l-2 border-indigo-200 pl-0">
                                             {link.subItems?.map((subItem) => {
                                                 const SubIcon = subItem.icon;
                                                 const isSubActive = pathname === subItem.href;
@@ -153,13 +159,16 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
                                                         href={subItem.href}
                                                         onClick={() => onClose()}
                                                         className={cn(
-                                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors block",
+                                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 block group",
                                                             isSubActive
-                                                                ? "text-blue-700 font-medium"
-                                                                : "text-gray-500 hover:text-gray-900"
+                                                                ? "text-indigo-700 font-medium bg-indigo-50"
+                                                                : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
                                                         )}
                                                     >
-                                                        <SubIcon className="h-4 w-4" />
+                                                        <SubIcon className={cn(
+                                                            "h-4 w-4 transition-all",
+                                                            isSubActive ? "text-indigo-600" : "text-cyan-400 group-hover:text-indigo-600"
+                                                        )} />
                                                         <span>{subItem.name}</span>
                                                     </Link>
                                                 );

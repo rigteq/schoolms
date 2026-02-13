@@ -13,8 +13,8 @@ export default function DashboardPage() {
     if (isLoading) {
         return (
             <div className="h-full w-full flex items-center justify-center min-h-[50vh]">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <span className="ml-3 text-lg font-medium text-muted-foreground">Loading your dashboard...</span>
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+                <span className="ml-3 text-lg font-medium text-slate-600">Loading your dashboard...</span>
             </div>
         );
     }
