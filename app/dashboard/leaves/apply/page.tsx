@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -136,9 +136,12 @@ export default function ApplyLeavePage() {
                     <form onSubmit={handleSubmit}>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="leave_type">Leave Type</Label>
+                                <Label htmlFor="leave_type" className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-indigo-600" />
+                                    Leave Type
+                                </Label>
                                 <Select onValueChange={handleSelectChange} value={formData.leave_type}>
-                                    <SelectTrigger id="leave_type">
+                                    <SelectTrigger id="leave_type" className="h-10">
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
                                     <SelectContent>

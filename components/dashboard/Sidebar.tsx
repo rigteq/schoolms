@@ -82,7 +82,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
             {/* Sidebar Container */}
             <aside
                 className={cn(
-                    "fixed top-0 left-0 z-50 h-screen bg-gradient-to-b from-white via-indigo-50/30 to-white shadow-2xl transition-all duration-300 transform lg:sticky border-r border-indigo-100 overflow-y-auto",
+                    "fixed top-0 left-0 z-50 h-screen bg-white shadow-2xl transition-all duration-300 transform lg:sticky border-r border-indigo-100 overflow-y-auto",
                     isOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0",
                     isCollapsed ? "lg:w-0 lg:p-0 border-none" : "lg:w-64"
                 )}
@@ -149,7 +149,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
 
                                     {/* Sub Items */}
                                     {hasSubItems && isExpanded && !isCollapsed && (
-                                        <div className="ml-9 mt-1 space-y-1 border-l-2 border-indigo-200 pl-0">
+                                        <div className="ml-6 mt-1 space-y-0 pl-1">
                                             {link.subItems?.map((subItem) => {
                                                 const SubIcon = subItem.icon;
                                                 const isSubActive = pathname === subItem.href;
@@ -159,17 +159,17 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
                                                         href={subItem.href}
                                                         onClick={() => onClose()}
                                                         className={cn(
-                                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 block group",
+                                                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 group",
                                                             isSubActive
                                                                 ? "text-indigo-700 font-medium bg-indigo-50"
                                                                 : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
                                                         )}
                                                     >
                                                         <SubIcon className={cn(
-                                                            "h-4 w-4 transition-all",
+                                                            "h-4 w-4 flex-shrink-0 transition-all",
                                                             isSubActive ? "text-indigo-600" : "text-cyan-400 group-hover:text-indigo-600"
                                                         )} />
-                                                        <span>{subItem.name}</span>
+                                                        <span className="truncate">{subItem.name}</span>
                                                     </Link>
                                                 );
                                             })}

@@ -48,14 +48,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen w-full">
       {/* Left Section: Branding/Stats - 60% */}
-      <div className="hidden lg:flex w-[60%] flex-col relative bg-primary overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700" />
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-10 mix-blend-overlay" />
+      <div className="hidden lg:flex w-[60%] flex-col relative bg-white overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-cyan-50" />
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-5 mix-blend-overlay" />
 
-        <div className="relative z-10 flex flex-col h-full p-12 text-white justify-between">
+        <div className="relative z-10 flex flex-col h-full p-12 text-slate-900 justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center text-primary font-bold text-xl">S</div>
-            <h1 className="text-2xl font-bold tracking-tight">SchoolMS</h1>
+            <div className="h-10 w-10 bg-gradient-to-br from-indigo-600 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+            <h1 className="text-2xl font-bold tracking-tight gradient-text-primary">SchoolMS</h1>
           </div>
 
           <div className="space-y-6 max-w-2xl">
@@ -63,7 +63,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-5xl font-bold leading-tight"
+              className="text-5xl font-bold leading-tight text-slate-900"
             >
               Manage your institution with precision and elegance.
             </motion.h2>
@@ -71,7 +71,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-lg text-blue-100/90"
+              className="text-lg text-slate-700"
             >
               The most advanced school management portal designed for efficiency, clarity, and growth.
             </motion.p>
@@ -79,23 +79,23 @@ export default function LoginPage() {
 
           <div className="flex gap-8">
             <div className="space-y-1">
-              <p className="text-3xl font-bold">500+</p>
-              <p className="text-sm text-blue-200">Schools Trusted</p>
+              <p className="text-3xl font-bold text-slate-900">500+</p>
+              <p className="text-sm text-slate-600">Schools Trusted</p>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">1M+</p>
-              <p className="text-sm text-blue-200">Students Active</p>
+              <p className="text-3xl font-bold text-slate-900">1M+</p>
+              <p className="text-sm text-slate-600">Students Active</p>
             </div>
             <div className="space-y-1">
-              <p className="text-3xl font-bold">99.9%</p>
-              <p className="text-sm text-blue-200">Uptime</p>
+              <p className="text-3xl font-bold text-slate-900">99.9%</p>
+              <p className="text-sm text-slate-600">Uptime</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Section: Login - 40% */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background relative">
+      <div className="flex-1 flex flex-col min-w-0 bg-white relative">
         {/* Header - Mobile Logo */}
         <header className="h-16 flex items-center px-6 lg:hidden border-b">
           <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center text-white font-bold text-lg mr-2">S</div>

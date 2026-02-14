@@ -34,7 +34,7 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
     const { role, signOut } = useAuth();
 
     return (
-        <header className="h-16 glass sticky top-0 z-30 flex items-center justify-between px-6 border-b border-indigo-100/20">
+        <header className="h-16 bg-white sticky top-0 z-30 flex items-center justify-between px-6 border-b border-indigo-200 shadow-md">
             <div className="flex items-center gap-4">
                 <button
                     onClick={onMenuClick}

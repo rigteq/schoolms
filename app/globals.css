@@ -27,8 +27,8 @@
   --text-secondary: #64748B;
   --text-light: #94A3B8;
   
-  --muted: #94A3B8;
-  --muted-foreground: #CBD5E1;
+  --muted: #64748B; /* darker muted bg for subtle elements */
+  --muted-foreground: #475569; /* improved contrast for muted text and placeholders */
   --border: #E2E8F0;
   --input: #F1F5F9;
   --ring: #6366F1;
@@ -227,19 +227,27 @@ body {
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #F8FAFC;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 4px;
+  background: linear-gradient(180deg, #6366F1 0%, #06B6D4 100%);
+  border-radius: 10px;
+  border: 2px solid #F8FAFC;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: linear-gradient(180deg, #4F46E5 0%, #0891B2 100%);
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #6366F1 #F8FAFC;
 }

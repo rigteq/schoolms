@@ -121,10 +121,10 @@ export default function LeaveApplicationList() {
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">
             <div className="flex items-center justify-between space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight">Leave Applications</h2>
+                <h2 className="text-4xl font-bold gradient-text-primary tracking-tight">Leave Applications</h2>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm">
+            <div className="rounded-xl border-2 border-indigo-100 bg-white/80 backdrop-blur shadow-lg">
                 <Table>
                     <TableHeader>
                         <TableRow>
