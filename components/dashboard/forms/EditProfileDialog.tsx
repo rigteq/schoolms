@@ -14,14 +14,16 @@ interface EditProfileDialogProps {
     onSuccess?: () => void;
     trigger?: React.ReactNode;
     isTeacher?: boolean;
+    isStudent?: boolean;
     defaultSubject?: string;
 }
 
-export default function EditProfileDialog({ profile, onSuccess, trigger, isTeacher, defaultSubject }: EditProfileDialogProps) {
+export default function EditProfileDialog({ profile, onSuccess, trigger, isTeacher, isStudent, defaultSubject }: EditProfileDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         full_name: profile?.full_name || "",
+        email: profile?.email || "",
         phone: profile?.phone || "",
         current_address: profile?.current_address || "",
         subject_specialization: defaultSubject || "",
@@ -31,6 +33,7 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
         if (open) {
             setFormData({
                 full_name: profile?.full_name || "",
+                email: profile?.email || "",
                 phone: profile?.phone || "",
                 current_address: profile?.current_address || "",
                 subject_specialization: defaultSubject || "",
@@ -43,10 +46,13 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
         setLoading(true);
 
         try {
+            const table = isStudent ? "students_data" : "profiles";
+
             const { error } = await supabase
-                .from("profiles")
+                .from(table)
                 .update({
                     full_name: formData.full_name,
+                    email: formData.email,
                     phone: formData.phone,
                     current_address: formData.current_address
                 })
@@ -88,6 +94,10 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                     <div className="space-y-2">
                         <Label>Full Name</Label>
                         <Input value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
                     </div>
                     {isTeacher && (
                         <div className="space-y-2">

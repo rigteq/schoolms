@@ -15,7 +15,7 @@ DROP FUNCTION IF EXISTS public.create_user_on_signup() CASCADE;
 DROP FUNCTION IF EXISTS public.is_superadmin() CASCADE;
 DROP FUNCTION IF EXISTS public.get_my_school_id() CASCADE;
 DROP FUNCTION IF EXISTS public.get_my_role() CASCADE;
-
+DROP TABLE IF EXISTS leave_details CASCADE;
 DROP TABLE IF EXISTS students_data CASCADE;
 DROP TABLE IF EXISTS teachers_data CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
@@ -30,7 +30,7 @@ DROP TABLE IF EXISTS roles CASCADE;
 -- Roles: Defines user hierarchy
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    role_name TEXT UNIQUE NOT NULL, -- 'Superadmin', 'Admin', 'Teacher', 'Student'
+    role_name TEXT UNIQUE NOT NULL, -- 'Superadmin', 'Admin', 'Teacher'
     created_at TIMESTAMPTZ DEFAULT NOW(),
     modified_at TIMESTAMPTZ DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
@@ -86,10 +86,17 @@ CREATE TABLE teachers_data (
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
--- Students Data: Extension table
+-- Students Data: Standalone table (No auth login)
 CREATE TABLE students_data (
-    id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id UUID REFERENCES schools(id) ON DELETE CASCADE,
     class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+    full_name TEXT NOT NULL,
+    email TEXT,
+    dob DATE,
+    phone TEXT,
+    current_address TEXT,
+    permanent_address TEXT,
     parent_name TEXT,
     parent_phone TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -105,38 +112,23 @@ CREATE INDEX idx_classes_school ON classes(school_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_profiles_role ON profiles(role_id);
 CREATE INDEX idx_profiles_email ON profiles(email);
 
-INSERT INTO roles (role_name) VALUES ('Superadmin'), ('Admin'), ('Teacher'), ('Student');
+INSERT INTO roles (role_name) VALUES ('Superadmin'), ('Admin'), ('Teacher');
 
 -- ==============================================================================
 -- 4. ROW LEVEL SECURITY (RLS) & HELPER FUNCTIONS
 -- ==============================================================================
 
--- Helper to safely get current user's role name
+-- Helper to safely get current user's role name from JWT metadata
 CREATE OR REPLACE FUNCTION public.get_my_role()
 RETURNS TEXT AS $$
-DECLARE
-  v_role TEXT;
-BEGIN
-  SELECT r.role_name INTO v_role
-  FROM profiles p
-  JOIN roles r ON p.role_id = r.id
-  WHERE p.id = auth.uid();
-  RETURN v_role;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+  SELECT auth.jwt() -> 'app_metadata' ->> 'role';
+$$ LANGUAGE sql STABLE;
 
--- Helper to safely get current user's school_id
+-- Helper to safely get current user's school_id from JWT metadata
 CREATE OR REPLACE FUNCTION public.get_my_school_id()
 RETURNS UUID AS $$
-DECLARE
-  v_school_id UUID;
-BEGIN
-  SELECT school_id INTO v_school_id
-  FROM profiles
-  WHERE id = auth.uid();
-  RETURN v_school_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+  SELECT (auth.jwt() -> 'user_metadata' ->> 'school_id')::UUID;
+$$ LANGUAGE sql STABLE;
 
 -- Enable RLS
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
@@ -230,28 +222,19 @@ USING ( public.get_my_role() = 'Superadmin' );
 
 CREATE POLICY "Admin manage school students_data" ON students_data FOR ALL TO authenticated
 USING ( 
-    EXISTS (
-        SELECT 1 FROM profiles p 
-        WHERE p.id = students_data.id AND p.school_id = public.get_my_school_id()
-    ) 
+    school_id = public.get_my_school_id() 
     AND public.get_my_role() = 'Admin'
 );
 
 CREATE POLICY "Teacher manage school students_data" ON students_data FOR ALL TO authenticated
 USING ( 
-    EXISTS (
-        SELECT 1 FROM profiles p 
-        WHERE p.id = students_data.id AND p.school_id = public.get_my_school_id()
-    ) 
+    school_id = public.get_my_school_id() 
     AND public.get_my_role() = 'Teacher'
 );
 
 CREATE POLICY "Users view school students_data" ON students_data FOR SELECT TO authenticated
 USING (
-    EXISTS (
-        SELECT 1 FROM profiles p 
-        WHERE p.id = students_data.id AND p.school_id = public.get_my_school_id()
-    )
+    school_id = public.get_my_school_id()
 );
 
 -- ==============================================================================
@@ -326,4 +309,3 @@ CREATE POLICY "Users update own pending leaves" ON leave_details FOR UPDATE TO a
 USING (
     profile_id = auth.uid() AND status = 'pending'
 );
-

@@ -116,12 +116,9 @@ export function useStudents({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
     const key = [`students`, page, search].join('#');
 
     const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
-        if (!roles) return { data: [], count: 0 };
-
-        let query = supabase.from("profiles")
-            .select(`*, schools(school_name), students_data(class_id, classes(class_name))`, { count: "exact" })
-            .eq("role_id", roles.id).eq("is_deleted", false);
+        let query = supabase.from("students_data")
+            .select(`*, schools(school_name), classes(class_name)`, { count: "exact" })
+            .eq("is_deleted", false);
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -190,7 +187,7 @@ export function useStats() {
         const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
         const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
 
-        const { count: studentsCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", studentRoleId || "").eq("is_deleted", false);
+        const { count: studentsCount } = await supabase.from("students_data").select("*", { count: 'exact', head: true }).eq("is_deleted", false);
         const { count: teachersCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", teacherRoleId || "").eq("is_deleted", false);
         const { count: classesCount } = await supabase.from("classes").select("*", { count: 'exact', head: true }).eq("is_deleted", false);
 
@@ -233,10 +230,9 @@ export function useSchoolStats(schoolId: string | undefined) {
             .eq("role_id", teacherRoleId || "")
             .eq("is_deleted", false);
 
-        const { count: studentsCount } = await supabase.from("profiles")
+        const { count: studentsCount } = await supabase.from("students_data")
             .select("*", { count: 'exact', head: true })
             .eq("school_id", schoolId)
-            .eq("role_id", studentRoleId || "")
             .eq("is_deleted", false);
 
         const { count: classesCount } = await supabase.from("classes")
@@ -304,12 +300,8 @@ export function useAdminStudents({ page, search, schoolId, itemsPerPage = ITEMS_
     const key = [`admin-students`, page, search, schoolId].join('#');
 
     const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
-        if (!roles) return { data: [], count: 0 };
-
-        let query = supabase.from("profiles")
-            .select(`*, schools(school_name), students_data(class_id, classes(class_name))`, { count: "exact" })
-            .eq("role_id", roles.id)
+        let query = supabase.from("students_data")
+            .select(`*, schools(school_name), classes(class_name)`, { count: "exact" })
             .eq("school_id", schoolId)
             .eq("is_deleted", false);
 

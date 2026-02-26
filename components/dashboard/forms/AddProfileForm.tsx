@@ -83,7 +83,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             return;
         }
 
-        if (!formData.password || formData.password.length < 6) {
+        if (roleName !== "Student" && (!formData.password || formData.password.length < 6)) {
             setError("Password must be at least 6 characters");
             toast.error("Password must be at least 6 characters");
             return;
@@ -213,7 +213,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid ${roleName === "Student" ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
                 <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <Input
@@ -225,17 +225,19 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         placeholder="john@example.com"
                     />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required
-                        placeholder="******"
-                    />
-                </div>
+                {roleName !== "Student" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                            id="password"
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                            placeholder="******"
+                        />
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

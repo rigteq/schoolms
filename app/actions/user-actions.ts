@@ -30,6 +30,22 @@ export async function createUserWithRole(params: CreateUserParams) {
             subject_name,
         } = params;
 
+        // Special handling for Student role (no login/profiles)
+        if (role_name === "Student") {
+            const { data: studentData, error: studentError } = await supabaseAdmin.from("students_data").insert({
+                school_id,
+                class_id: class_id || null,
+                full_name,
+                email,
+                phone,
+                current_address: address,
+                dob: dob || null,
+            }).select("id").single();
+
+            if (studentError) throw new Error(`Student creation failed: ${studentError.message}`);
+            return { success: true, user_id: studentData.id };
+        }
+
         const { data: roleData, error: roleError } = await supabaseAdmin
             .from("roles")
             .select("id")
@@ -76,14 +92,6 @@ export async function createUserWithRole(params: CreateUserParams) {
                 subject_specialization: subject_name || null,
             });
             if (teacherError) throw new Error(`Teacher data creation failed: ${teacherError.message}`);
-        }
-
-        if (role_name === "Student") {
-            const { error: studentError } = await supabaseAdmin.from("students_data").insert({
-                id: user_id,
-                class_id: class_id || null,
-            });
-            if (studentError) throw new Error(`Student data creation failed: ${studentError.message}`);
         }
 
         return { success: true, user_id };

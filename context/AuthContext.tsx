@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const currentUser = newSession?.user ?? null;
 
             // Update session and user whenever auth state changes
-            setSession(session);
+            setSession(newSession);
             setUser(currentUser);
             if (event === 'SIGNED_OUT') {
                 setSession(null);
