@@ -126,7 +126,7 @@ export default function StudentsPage() {
                                         <TableRow key={student.id} onClick={() => handleRowClick(student.id)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
                                             <TableCell className="font-medium">{student.full_name}</TableCell>
                                             <TableCell>
-                                                <Badge variant="outline">{(Array.isArray(student.students_data) ? student.students_data[0] : student.students_data)?.classes?.class_name || "Unassigned"}</Badge>
+                                                <Badge variant="outline">{student.classes?.class_name || "Unassigned"}</Badge>
                                             </TableCell>
                                             <TableCell className="max-w-[200px] truncate">
                                                 <div className="flex flex-col text-xs">

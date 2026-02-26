@@ -26,10 +26,11 @@ export default function StudentDetailPagePage() {
         setLoading(true);
         try {
             const { data, error } = await supabase
-                .from("profiles")
+                .from("students_data")
                 .select(`
              *,
-             schools (school_name)
+             schools (school_name),
+             classes (id, class_name, academic_year)
           `)
                 .eq("id", id)
                 .single();
@@ -37,17 +38,8 @@ export default function StudentDetailPagePage() {
             if (error) throw error;
             setStudent(data);
 
-            const { data: enrollment } = await supabase
-                .from("students_data")
-                .select(`
-             *,
-             classes (id, class_name, academic_year)
-           `)
-                .eq("id", id)
-                .maybeSingle();
-
-            if (enrollment?.classes) {
-                setEnrolledClass(enrollment.classes);
+            if (data?.classes) {
+                setEnrolledClass(data.classes);
 
                 const { data: teachersData } = await supabase
                     .from("teachers_data")
@@ -56,7 +48,7 @@ export default function StudentDetailPagePage() {
                    subject_specialization,
                    profiles:id (full_name, email)
                 `)
-                    .contains("class_ids", [enrollment.classes.id]);
+                    .contains("class_ids", [data.classes.id]);
 
                 setTeachers(teachersData?.map((t: any) => ({ ...t.profiles, id: t.id, subject: t.subject_specialization })) || []);
             } else {
@@ -77,7 +69,7 @@ export default function StudentDetailPagePage() {
 
     const handleDelete = async () => {
         if (!confirm("Are you sure? This will soft delete the student.")) return;
-        await supabase.from("profiles").update({ is_deleted: true }).eq("id", id);
+        await supabase.from("students_data").update({ is_deleted: true }).eq("id", id);
         router.push("/dashboard/students");
     }
 
@@ -117,7 +109,7 @@ export default function StudentDetailPagePage() {
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} />
+                            <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} isStudent={true} />
                             <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
                         </div>
                     </div>

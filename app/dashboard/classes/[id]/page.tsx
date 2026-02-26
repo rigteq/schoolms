@@ -59,8 +59,9 @@ export default function ClassDetailsPage() {
             // 2. Fetch Students
             const { data: stud, error: studError } = await supabase
                 .from("students_data")
-                .select("*, profiles:id(full_name, email)")
-                .eq("class_id", classId);
+                .select("id, full_name, email")
+                .eq("class_id", classId)
+                .eq("is_deleted", false);
 
             if (studError) throw studError;
             setStudents(stud || []);
@@ -89,15 +90,12 @@ export default function ClassDetailsPage() {
         if (!targetSchoolId) return;
 
         if (type === "student") {
-            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Student").single();
-            if (roleData) {
-                const { data: studs } = await supabase
-                    .from("profiles")
-                    .select("id, full_name")
-                    .eq("school_id", targetSchoolId)
-                    .eq("role_id", roleData.id);
-                setAvailableStudents(studs || []);
-            }
+            const { data: studs } = await supabase
+                .from("students_data")
+                .select("id, full_name")
+                .eq("school_id", targetSchoolId)
+                .eq("is_deleted", false);
+            setAvailableStudents(studs || []);
 
         } else {
             const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
@@ -106,7 +104,8 @@ export default function ClassDetailsPage() {
                     .from("profiles")
                     .select("id, full_name")
                     .eq("school_id", targetSchoolId)
-                    .eq("role_id", roleData.id);
+                    .eq("role_id", roleData.id)
+                    .eq("is_deleted", false);
                 setAvailableTeachers(teachs || []);
             }
         }
@@ -345,8 +344,8 @@ export default function ClassDetailsPage() {
                                                 <UserPlus className="h-4 w-4 text-green-600" />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-sm">{s.profiles?.full_name}</p>
-                                                <p className="text-xs text-muted-foreground">{s.profiles?.email}</p>
+                                                <p className="font-medium text-sm">{s.full_name}</p>
+                                                <p className="text-xs text-muted-foreground">{s.email}</p>
                                             </div>
                                         </div>
                                         <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
