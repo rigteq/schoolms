@@ -43,6 +43,17 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!/^\+91\d{10}$/.test(formData.phone)) {
+            toast.error("Phone number must start with +91 and contain exactly 10 digits");
+            return;
+        }
+
+        if (!formData.current_address?.trim()) {
+            toast.error("Address is required");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -106,12 +117,26 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label>Phone</Label>
-                        <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                        <Label>Phone <span className="text-red-500">*</span></Label>
+                        <Input
+                            value={formData.phone}
+                            onChange={e => {
+                                let val = e.target.value;
+                                if (!val.startsWith("+91")) val = "+91" + val.replace(/^\+?9?1?/, "");
+                                setFormData({ ...formData, phone: val });
+                            }}
+                            required
+                            placeholder="+919876543210"
+                        />
                     </div>
                     <div className="space-y-2">
-                        <Label>Address</Label>
-                        <Input value={formData.current_address} onChange={e => setFormData({ ...formData, current_address: e.target.value })} />
+                        <Label>Address <span className="text-red-500">*</span></Label>
+                        <Input
+                            value={formData.current_address}
+                            onChange={e => setFormData({ ...formData, current_address: e.target.value })}
+                            required
+                            placeholder="Full Address"
+                        />
                     </div>
                     <Button type="submit" disabled={loading} className="w-full">
                         {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Save Changes"}

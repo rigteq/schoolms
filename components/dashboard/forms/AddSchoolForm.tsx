@@ -20,12 +20,29 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!/^\+91\d{10}$/.test(formData.phone)) {
+            toast.error("Phone number must start with +91 and contain exactly 10 digits");
+            return;
+        }
+        if (!formData.address?.trim()) {
+            toast.error("Address is required");
+            return;
+        }
+
         setLoading(true);
 
         try {
-            const { error: insertError } = await supabase
+            const payload = {
+                ...formData,
+                email: formData.email ? formData.email : null
+            };
+
+            const { data, error: insertError } = await supabase
                 .from("schools")
-                .insert([formData]);
+                .insert([payload])
+                .select()
+                .single();
 
             if (insertError) {
                 console.error("Supabase Error:", insertError);
@@ -66,20 +83,26 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">Phone <span className="text-red-500">*</span></Label>
                 <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+1 234 567 890"
+                    onChange={(e) => {
+                        let val = e.target.value;
+                        if (!val.startsWith("+91")) val = "+91" + val.replace(/^\+?9?1?/, "");
+                        setFormData({ ...formData, phone: val });
+                    }}
+                    required
+                    placeholder="+919876543210"
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
+                <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
                 <Input
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    required
                     placeholder="123 Education Lane"
                 />
             </div>
