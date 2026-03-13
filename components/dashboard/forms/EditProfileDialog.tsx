@@ -104,7 +104,10 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Full Name</Label>
-                        <Input value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required />
+                        <Input value={formData.full_name} onChange={e => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                            setFormData({ ...formData, full_name: val });
+                        }} required />
                     </div>
                     <div className="space-y-2">
                         <Label>Email</Label>
@@ -113,7 +116,10 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                     {isTeacher && (
                         <div className="space-y-2">
                             <Label>Subject Specialization</Label>
-                            <Input value={formData.subject_specialization} onChange={e => setFormData({ ...formData, subject_specialization: e.target.value })} placeholder="e.g. Mathematics" />
+                            <Input value={formData.subject_specialization} onChange={e => {
+                                const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                                setFormData({ ...formData, subject_specialization: val });
+                            }} placeholder="e.g. Mathematics" />
                         </div>
                     )}
                     <div className="space-y-2">

@@ -44,6 +44,14 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
             toast.error("Please select a school");
             return;
         }
+
+        const classRegex = /^([1-9]|1[0-2])(-[a-zA-Z])?$|^(LKG|UKG|Nursery)$/i;
+        if (!classRegex.test(formData.class_name.trim())) {
+            setError("Class format should be like 1, 1-A, 12, 12-A, LKG, UKG, or Nursery");
+            toast.error("Invalid class format");
+            return;
+        }
+
         setLoading(true);
         setError(null);
 

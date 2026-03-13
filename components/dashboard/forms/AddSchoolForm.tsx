@@ -67,7 +67,10 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
                 <Input
                     id="school_name"
                     value={formData.school_name}
-                    onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                        setFormData({ ...formData, school_name: val });
+                    }}
                     required
                     placeholder="e.g. Springfield High"
                 />

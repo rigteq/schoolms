@@ -208,7 +208,10 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                     <Input
                         id="subject"
                         value={formData.subject_name}
-                        onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                            setFormData({ ...formData, subject_name: val });
+                        }}
                         placeholder="e.g. Mathematics"
                     />
                 </div>
@@ -219,7 +222,10 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                        setFormData({ ...formData, full_name: val });
+                    }}
                     required
                     placeholder="John Doe"
                 />

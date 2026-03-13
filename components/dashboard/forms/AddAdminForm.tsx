@@ -132,7 +132,10 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                 <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                        setFormData({ ...formData, full_name: val });
+                    }}
                     required
                     placeholder="Jane Doe"
                 />

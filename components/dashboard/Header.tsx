@@ -63,7 +63,7 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-indigo-50 outline-none hover:ring-indigo-200 transition-all duration-200 cursor-pointer hover:shadow-lg">
+                        <button suppressHydrationWarning className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-medium text-sm ring-2 ring-white ring-offset-2 ring-offset-indigo-50 outline-none hover:ring-indigo-200 transition-all duration-200 cursor-pointer hover:shadow-lg">
                             {role ? role.charAt(0) : 'U'}
                         </button>
                     </DropdownMenuTrigger>
