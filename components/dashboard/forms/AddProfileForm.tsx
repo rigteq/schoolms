@@ -101,6 +101,18 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             return;
         }
 
+        if (!/^\+91\d{10}$/.test(formData.phone)) {
+            setError("Phone number must start with +91 and contain exactly 10 digits");
+            toast.error("Phone number must start with +91 and contain exactly 10 digits");
+            return;
+        }
+
+        if (!formData.current_address?.trim()) {
+            setError("Address is required");
+            toast.error("Address is required");
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -196,7 +208,10 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                     <Input
                         id="subject"
                         value={formData.subject_name}
-                        onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                            setFormData({ ...formData, subject_name: val });
+                        }}
                         placeholder="e.g. Mathematics"
                     />
                 </div>
@@ -207,7 +222,10 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                        setFormData({ ...formData, full_name: val });
+                    }}
                     required
                     placeholder="John Doe"
                 />
@@ -242,12 +260,17 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">Phone <span className="text-red-500">*</span></Label>
                     <Input
                         id="phone"
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+1 234..."
+                        onChange={(e) => {
+                            let val = e.target.value;
+                            if (!val.startsWith("+91")) val = "+91" + val.replace(/^\+?9?1?/, "");
+                            setFormData({ ...formData, phone: val });
+                        }}
+                        required
+                        placeholder="+919876543210"
                     />
                 </div>
                 <div className="space-y-2">
@@ -270,11 +293,12 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
+                <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
                 <Input
                     id="address"
                     value={formData.current_address}
                     onChange={(e) => setFormData({ ...formData, current_address: e.target.value })}
+                    required
                     placeholder="Full Address"
                 />
             </div>

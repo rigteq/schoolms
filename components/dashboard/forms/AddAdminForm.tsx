@@ -24,6 +24,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         password: "",
         phone: "",
         dob: "",
+        address: "",
     });
 
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,6 +66,16 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             return;
         }
 
+        if (!/^\+91\d{10}$/.test(formData.phone)) {
+            toast.error("Phone number must start with +91 and contain exactly 10 digits");
+            return;
+        }
+
+        if (!formData.address?.trim()) {
+            toast.error("Address is required");
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -77,7 +88,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             if (!result.success) throw new Error(result.error);
 
             toast.success("Admin created successfully!");
-            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "" });
+            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "", address: "" });
             setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
@@ -121,7 +132,10 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                 <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                        setFormData({ ...formData, full_name: val });
+                    }}
                     required
                     placeholder="Jane Doe"
                 />
@@ -170,12 +184,28 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone">Phone <span className="text-red-500">*</span></Label>
                 <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Optional"
+                    onChange={(e) => {
+                        let val = e.target.value;
+                        if (!val.startsWith("+91")) val = "+91" + val.replace(/^\+?9?1?/, "");
+                        setFormData({ ...formData, phone: val });
+                    }}
+                    required
+                    placeholder="+919876543210"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
+                <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    required
+                    placeholder="Full Address"
                 />
             </div>
 

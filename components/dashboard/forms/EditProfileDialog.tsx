@@ -43,6 +43,17 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!/^\+91\d{10}$/.test(formData.phone)) {
+            toast.error("Phone number must start with +91 and contain exactly 10 digits");
+            return;
+        }
+
+        if (!formData.current_address?.trim()) {
+            toast.error("Address is required");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -93,7 +104,10 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Full Name</Label>
-                        <Input value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required />
+                        <Input value={formData.full_name} onChange={e => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                            setFormData({ ...formData, full_name: val });
+                        }} required />
                     </div>
                     <div className="space-y-2">
                         <Label>Email</Label>
@@ -102,16 +116,33 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                     {isTeacher && (
                         <div className="space-y-2">
                             <Label>Subject Specialization</Label>
-                            <Input value={formData.subject_specialization} onChange={e => setFormData({ ...formData, subject_specialization: e.target.value })} placeholder="e.g. Mathematics" />
+                            <Input value={formData.subject_specialization} onChange={e => {
+                                const val = e.target.value.replace(/[^a-zA-Z\s.]/g, "");
+                                setFormData({ ...formData, subject_specialization: val });
+                            }} placeholder="e.g. Mathematics" />
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label>Phone</Label>
-                        <Input value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
+                        <Label>Phone <span className="text-red-500">*</span></Label>
+                        <Input
+                            value={formData.phone}
+                            onChange={e => {
+                                let val = e.target.value;
+                                if (!val.startsWith("+91")) val = "+91" + val.replace(/^\+?9?1?/, "");
+                                setFormData({ ...formData, phone: val });
+                            }}
+                            required
+                            placeholder="+919876543210"
+                        />
                     </div>
                     <div className="space-y-2">
-                        <Label>Address</Label>
-                        <Input value={formData.current_address} onChange={e => setFormData({ ...formData, current_address: e.target.value })} />
+                        <Label>Address <span className="text-red-500">*</span></Label>
+                        <Input
+                            value={formData.current_address}
+                            onChange={e => setFormData({ ...formData, current_address: e.target.value })}
+                            required
+                            placeholder="Full Address"
+                        />
                     </div>
                     <Button type="submit" disabled={loading} className="w-full">
                         {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Save Changes"}
