@@ -6,9 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Search, ChevronLeft, ChevronRight, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AddSchoolForm from "@/components/dashboard/forms/AddSchoolForm";
+import EditSchoolForm from "@/components/dashboard/forms/EditSchoolForm";
 import { useSchools } from "@/lib/hooks/useData";
 
 const ITEMS_PER_PAGE = 10;
@@ -47,6 +48,8 @@ export default function SchoolsPage() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [mounted, setMounted] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
+    const [editSchool, setEditSchool] = useState<any>(null);
 
     const { schools, totalCount, loading, mutate } = useSchools({ page, search });
 
@@ -65,16 +68,33 @@ export default function SchoolsPage() {
                     <h1 className="text-4xl font-bold gradient-text-primary tracking-tight">Schools</h1>
                     <p className="text-slate-600 mt-2">Manage all registered schools.</p>
                 </div>
-                <Dialog>
+                {/* Add School Dialog */}
+                <Dialog open={addOpen} onOpenChange={setAddOpen}>
                     <DialogTrigger asChild>
                         <Button className="shrink-0 gradient-btn"><Plus className="mr-2 h-4 w-4" /> Add School</Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
                         <DialogHeader>
                             <DialogTitle className="gradient-text-primary">Add New School</DialogTitle>
                         </DialogHeader>
                         <div className="p-4">
-                            <AddSchoolForm onSuccess={() => mutate()} />
+                            <AddSchoolForm onSuccess={() => { mutate(); setAddOpen(false); }} />
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                {/* Edit School Dialog */}
+                <Dialog open={!!editSchool} onOpenChange={(open) => { if (!open) setEditSchool(null); }}>
+                    <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                        <DialogHeader>
+                            <DialogTitle className="gradient-text-primary">Edit School</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-2">
+                            {editSchool && (
+                                <EditSchoolForm
+                                    school={editSchool}
+                                    onSuccess={() => { mutate(); setEditSchool(null); }}
+                                />
+                            )}
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -102,6 +122,7 @@ export default function SchoolsPage() {
                                     <TableHead>Contact</TableHead>
                                     <TableHead>Created On</TableHead>
                                     <TableHead>Edited On</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -111,9 +132,9 @@ export default function SchoolsPage() {
                                     </TableRow>
                                 ) : (
                                     schools.map((school: any) => (
-                                        <TableRow key={school.id} onClick={() => handleRowClick(school.id)} className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/50">
-                                            <TableCell className="font-medium">{school.school_name}</TableCell>
-                                            <TableCell>{school.address || "N/A"}</TableCell>
+                                        <TableRow key={school.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                                            <TableCell className="font-medium cursor-pointer" onClick={() => handleRowClick(school.id)}>{school.school_name}</TableCell>
+                                            <TableCell className="text-sm text-slate-600 max-w-[180px] truncate" title={school.address}>{school.address || "N/A"}</TableCell>
                                             <TableCell className="max-w-[200px] truncate">
                                                 <div className="flex flex-col text-xs">
                                                     {school.email && <span>{school.email}</span>}
@@ -122,6 +143,16 @@ export default function SchoolsPage() {
                                             </TableCell>
                                             <TableCell>{mounted ? formatDate(school.created_at) : "-"}</TableCell>
                                             <TableCell>{mounted ? formatDate(school.modified_at) : "-"}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                                    onClick={(e) => { e.stopPropagation(); setEditSchool(school); }}
+                                                >
+                                                    <Edit className="h-3.5 w-3.5 mr-1" /> Edit
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 )}

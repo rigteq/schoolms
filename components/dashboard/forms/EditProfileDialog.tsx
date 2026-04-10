@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Edit } from "lucide-react";
 import { toast } from "sonner";
@@ -44,17 +45,16 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-
         try {
             const table = isStudent ? "students_data" : "profiles";
-
             const { error } = await supabase
                 .from(table)
                 .update({
                     full_name: formData.full_name,
                     email: formData.email,
                     phone: formData.phone,
-                    current_address: formData.current_address
+                    current_address: formData.current_address,
+                    modified_at: new Date().toISOString(),
                 })
                 .eq("id", profile.id);
 
@@ -63,15 +63,11 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
             if (isTeacher) {
                 const { error: teacherError } = await supabase
                     .from("teachers_data")
-                    .upsert({
-                        id: profile.id,
-                        subject_specialization: formData.subject_specialization
-                    });
-
+                    .upsert({ id: profile.id, subject_specialization: formData.subject_specialization });
                 if (teacherError) throw teacherError;
             }
 
-            toast.success("Profile updated");
+            toast.success("Profile updated successfully.");
             setOpen(false);
             if (onSuccess) onSuccess();
         } catch (error: any) {
@@ -86,9 +82,9 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
             <DialogTrigger asChild>
                 {trigger || <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>}
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
                 <DialogHeader>
-                    <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogTitle className="gradient-text-primary">Edit Profile</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -96,8 +92,8 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                         <Input value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} required />
                     </div>
                     <div className="space-y-2">
-                        <Label>Email</Label>
-                        <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required />
+                        <Label>Email {isStudent && <span className="text-slate-400 text-xs font-normal">(Optional)</span>}</Label>
+                        <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required={!isStudent} />
                     </div>
                     {isTeacher && (
                         <div className="space-y-2">
@@ -111,7 +107,12 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
                     </div>
                     <div className="space-y-2">
                         <Label>Address</Label>
-                        <Input value={formData.current_address} onChange={e => setFormData({ ...formData, current_address: e.target.value })} />
+                        <Textarea
+                            value={formData.current_address}
+                            onChange={e => setFormData({ ...formData, current_address: e.target.value })}
+                            placeholder="Full address including city, state and pin code"
+                            rows={3}
+                        />
                     </div>
                     <Button type="submit" disabled={loading} className="w-full">
                         {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Save Changes"}

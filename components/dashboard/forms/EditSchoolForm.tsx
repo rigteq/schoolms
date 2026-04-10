@@ -9,36 +9,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void }) {
-    const [loading, setLoading] = useState(false);
+interface EditSchoolFormProps {
+    school: {
+        id: string;
+        school_name: string;
+        address?: string;
+        phone?: string;
+        email?: string;
+    };
+    onSuccess?: () => void;
+}
 
+export default function EditSchoolForm({ school, onSuccess }: EditSchoolFormProps) {
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        school_name: "",
-        address: "",
-        phone: "",
-        email: ""
+        school_name: school.school_name || "",
+        address: school.address || "",
+        phone: school.phone || "",
+        email: school.email || "",
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-
         try {
-            const { error: insertError } = await supabase
+            const { error } = await supabase
                 .from("schools")
-                .insert([formData]);
+                .update({ ...formData, modified_at: new Date().toISOString() })
+                .eq("id", school.id);
 
-            if (insertError) {
-                console.error("Supabase Error:", insertError);
-                throw new Error(insertError.message || "Failed to create school");
-            }
+            if (error) throw error;
 
-            toast.success("School created successfully!");
-            setFormData({ school_name: "", address: "", phone: "", email: "" });
+            toast.success("School updated successfully!");
             if (onSuccess) onSuccess();
         } catch (err: any) {
-            console.error("Submission Error:", err);
-            toast.error(err.message || "Something went wrong. Please check console.");
+            toast.error(err.message || "Failed to update school.");
         } finally {
             setLoading(false);
         }
@@ -47,9 +52,9 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-                <Label htmlFor="school_name">School Name</Label>
+                <Label htmlFor="edit_school_name">School Name</Label>
                 <Input
-                    id="school_name"
+                    id="edit_school_name"
                     value={formData.school_name}
                     onChange={(e) => setFormData({ ...formData, school_name: e.target.value })}
                     required
@@ -57,9 +62,9 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="school_email">Email <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                <Label htmlFor="edit_school_email">Email</Label>
                 <Input
-                    id="school_email"
+                    id="edit_school_email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -67,28 +72,28 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="school_phone">Phone <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                <Label htmlFor="edit_school_phone">Phone</Label>
                 <Input
-                    id="school_phone"
+                    id="edit_school_phone"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+1 234 567 890"
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="school_address">Address <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                <Label htmlFor="edit_school_address">Address</Label>
                 <Textarea
-                    id="school_address"
+                    id="edit_school_address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="123 Education Lane, City, State, PIN"
+                    placeholder="123 Education Lane, City, State"
                     rows={3}
                 />
             </div>
             <div className="flex justify-end pt-4">
                 <Button type="submit" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create School
+                    Save Changes
                 </Button>
             </div>
         </form>

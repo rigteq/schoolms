@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createUserWithRole } from "@/app/actions/user-actions";
@@ -16,6 +17,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
     const [error, setError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
     const [dobError, setDobError] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         school_id: "",
@@ -24,19 +26,19 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         password: "",
         phone: "",
         dob: "",
+        current_address: "",
     });
 
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const dob = e.target.value;
         setFormData({ ...formData, dob });
-
         const ageError = getAgeValidationError(dob, 4, 120);
         setDobError(ageError);
     };
 
     useEffect(() => {
         async function fetchSchools() {
-            const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
+            const { data } = await supabase.from("schools").select("id, school_name").eq("is_deleted", false).order("school_name");
             if (data) setSchools(data);
         }
         fetchSchools();
@@ -71,13 +73,14 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
         try {
             const result = await createUserWithRole({
                 ...formData,
-                role_name: "Admin"
+                role_name: "Admin",
+                address: formData.current_address,
             });
 
             if (!result.success) throw new Error(result.error);
 
             toast.success("Admin created successfully!");
-            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "" });
+            setFormData({ school_id: "", full_name: "", email: "", password: "", phone: "", dob: "", current_address: "" });
             setDobError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
@@ -98,7 +101,7 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             )}
 
             <div className="space-y-2">
-                <Label htmlFor="school">School</Label>
+                <Label htmlFor="admin_school">School</Label>
                 <Select
                     onValueChange={(val) => setFormData({ ...formData, school_id: val })}
                     value={formData.school_id}
@@ -117,9 +120,9 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name</Label>
+                <Label htmlFor="admin_full_name">Full Name</Label>
                 <Input
-                    id="full_name"
+                    id="admin_full_name"
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                     required
@@ -128,9 +131,9 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="dob">Date of Birth</Label>
+                <Label htmlFor="admin_dob">Date of Birth</Label>
                 <Input
-                    id="dob"
+                    id="admin_dob"
                     type="date"
                     value={formData.dob}
                     onChange={handleDobChange}
@@ -139,16 +142,14 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
                     max={getMaxDate(4)}
                 />
                 {dobError && (
-                    <div className="text-red-500 text-sm">
-                        {dobError}
-                    </div>
+                    <div className="text-red-500 text-sm">{dobError}</div>
                 )}
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="admin_email">Email</Label>
                 <Input
-                    id="email"
+                    id="admin_email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -158,24 +159,46 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="admin_password">Password</Label>
+                <div className="relative">
+                    <Input
+                        id="admin_password"
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                        placeholder="Min. 6 characters"
+                        className="pr-10"
+                    />
+                    <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onClick={() => setShowPassword(!showPassword)}
+                        tabIndex={-1}
+                    >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="admin_phone">Phone <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                 <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required
-                    placeholder="******"
+                    id="admin_phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="Optional"
                 />
             </div>
 
             <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="Optional"
+                <Label htmlFor="admin_address">Address <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                <Textarea
+                    id="admin_address"
+                    value={formData.current_address}
+                    onChange={(e) => setFormData({ ...formData, current_address: e.target.value })}
+                    placeholder="Full address including city, state and pin code"
+                    rows={3}
                 />
             </div>
 

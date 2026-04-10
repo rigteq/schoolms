@@ -15,7 +15,7 @@ export function useSchools({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UseP
     const key = [`schools`, page, search].join('#');
 
     const fetcher = async () => {
-        let query = supabase.from("schools").select("*", { count: "exact" });
+        let query = supabase.from("schools").select("*", { count: "exact" }).eq("is_deleted", false);
         if (search) query = query.ilike("school_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -346,6 +346,50 @@ export function useAdminClasses({ page, search, schoolId, itemsPerPage = ITEMS_P
         const to = from + itemsPerPage - 1;
 
         const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
+        if (error) throw error;
+        return { data, count };
+    };
+
+    const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
+        keepPreviousData: true,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        dedupingInterval: 2000,
+    });
+
+    return {
+        classes: data?.data || [],
+        totalCount: data?.count || 0,
+        loading: isLoading,
+        error,
+        mutate
+    };
+}
+
+// Teacher-specific: fetch only the classes assigned via teachers_data.class_ids
+export function useTeacherClasses(teacherId: string | undefined) {
+    const key = teacherId ? `teacher-classes-${teacherId}` : null;
+
+    const fetcher = async () => {
+        if (!teacherId) return { data: [], count: 0 };
+
+        // Get the teacher's assigned class IDs
+        const { data: teacherData, error: tErr } = await supabase
+            .from("teachers_data")
+            .select("class_ids")
+            .eq("id", teacherId)
+            .maybeSingle();
+
+        if (tErr) throw tErr;
+        const classIds: string[] = teacherData?.class_ids || [];
+        if (classIds.length === 0) return { data: [], count: 0 };
+
+        const { data, count, error } = await supabase
+            .from("classes")
+            .select(`*, schools(school_name), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
+            .in("id", classIds)
+            .eq("is_deleted", false);
+
         if (error) throw error;
         return { data, count };
     };
