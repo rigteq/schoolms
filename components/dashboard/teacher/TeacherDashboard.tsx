@@ -1,7 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, BarChart3, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -10,53 +9,40 @@ import { supabase } from "@/lib/supabase";
 
 export default function TeacherDashboard() {
     const { profile, isLoading: authLoading } = useAuth();
-    const [stats, setStats] = useState({
-        classes: 0,
-        students: 0,
-    });
+    const [stats, setStats] = useState({ classes: 0, students: 0 });
+    const [schoolName, setSchoolName] = useState<string>("");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStats = async () => {
-            if (!profile?.school_id) return;
+            if (!profile?.id || !profile?.school_id) return;
 
             try {
-                // Get classes count
-                // RLS ensures we only see classes we are allowed to see (which is all in school for now, as per policy? 
-                // Wait, policy says "Users view school classes".
-                // But for specific teacher, maybe we want ONLY their classes? 
-                // The prompt said: "Teacher See Students, Classes from HIS SCHOOL ONLY".
-                // So "All classes in school" is acceptable per prompt "from HIS SCHOOL ONLY", 
-                // but "Teacher's Dashboard" usually implies THEIR classes.
-                // However, let's stick to "School Scope" first or try to filter by teacher_id in classes if schema supports.
-                // Schema: teachers_data has class_ids.
+                // Fetch school name
+                const { data: schoolData } = await supabase
+                    .from("schools")
+                    .select("school_name")
+                    .eq("id", profile.school_id)
+                    .single();
+                if (schoolData) setSchoolName(schoolData.school_name);
 
-                // Let's get "My Classes" from teachers_data
+                // Get teacher's assigned class IDs
                 const { data: teacherData } = await supabase
                     .from("teachers_data")
                     .select("class_ids")
                     .eq("id", profile.id)
                     .single();
 
-                const myClassIds = teacherData?.class_ids || [];
+                const myClassIds: string[] = teacherData?.class_ids || [];
                 const classCount = myClassIds.length;
-
-                // Get All Students in School (or my classes?) -> "Teacher See Students... from HIS SCHOOL ONLY".
-                // Let's count all students in the school for now, or just My Students?
-                // The prompt says "Teacher See Students ... from HIS SCHOOL ONLY". It doesn't explicitly restrict to "My Students".
-                // But "Teacher Dashboard" usually implies "My Students".
-                // Let's count students in the school for specific stats, or students in "My Classes".
-
-                // Let's go with "All Students in School" as the base metric for "searchability", 
-                // but for dashboard stats "My Classes" makes more sense.
-                // Let's count students whose class_id is in myClassIds.
 
                 let studentCount = 0;
                 if (myClassIds.length > 0) {
                     const { count } = await supabase
                         .from("students_data")
-                        .select("*", { count: 'exact', head: true })
-                        .in("class_id", myClassIds);
+                        .select("*", { count: "exact", head: true })
+                        .in("class_id", myClassIds)
+                        .eq("is_deleted", false);
                     studentCount = count || 0;
                 }
 
@@ -69,7 +55,8 @@ export default function TeacherDashboard() {
         };
 
         if (profile) fetchStats();
-    }, [profile]);
+        else if (!authLoading) setLoading(false);
+    }, [profile, authLoading]);
 
     if (authLoading || loading) {
         return (
@@ -85,7 +72,12 @@ export default function TeacherDashboard() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-4xl font-bold gradient-text-primary tracking-tight">Teacher Dashboard</h2>
-                    <p className="text-slate-600 mt-2">Manage your assigned classes and students.</p>
+                    <p className="text-slate-600 mt-2">
+                        {schoolName
+                            ? <>Welcome to <strong>{schoolName}</strong>. Manage your assigned classes and students.</>
+                            : "Manage your assigned classes and students."
+                        }
+                    </p>
                 </div>
             </div>
 
@@ -98,10 +90,7 @@ export default function TeacherDashboard() {
                     <div className="grid gap-4 md:grid-cols-3">
                         <div>
                             <p className="text-sm text-muted-foreground">School</p>
-                            {/* We can fetch school name or just show ID/Wait */}
-                            <p className="text-lg font-semibold truncate" title={profile?.school_id}>
-                                {profile?.school_id ? "Your School (Active)" : "N/A"}
-                            </p>
+                            <p className="text-lg font-semibold">{schoolName || "—"}</p>
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Email</p>
@@ -117,50 +106,21 @@ export default function TeacherDashboard() {
 
             {/* Quick Stats */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard
-                    title="My Classes"
-                    value={stats.classes}
-                    icon={BookOpen}
-                    description="Assigned classes"
-                    color="text-blue-600"
-                    bg="bg-blue-100"
-                />
-                <StatsCard
-                    title="My Students"
-                    value={stats.students}
-                    icon={Users}
-                    description="In your classes"
-                    color="text-green-600"
-                    bg="bg-green-100"
-                />
-                {/* Placeholders for future features */}
-                <StatsCard
-                    title="Performance"
-                    value="--"
-                    icon={BarChart3}
-                    description="Average Grade"
-                    color="text-purple-600"
-                    bg="bg-purple-100"
-                />
-                <StatsCard
-                    title="Upcoming"
-                    value="0"
-                    icon={Calendar}
-                    description="Events"
-                    color="text-orange-600"
-                    bg="bg-orange-100"
-                />
+                <StatsCard title="My Classes" value={stats.classes} icon={BookOpen} description="Assigned classes" color="text-blue-600" bg="bg-blue-100" />
+                <StatsCard title="My Students" value={stats.students} icon={Users} description="In your classes" color="text-green-600" bg="bg-green-100" />
+                <StatsCard title="Performance" value="--" icon={BarChart3} description="Average Grade" color="text-purple-600" bg="bg-purple-100" />
+                <StatsCard title="Upcoming" value="0" icon={Calendar} description="Events" color="text-orange-600" bg="bg-orange-100" />
             </div>
 
             {/* Navigation Links */}
-            <Card>
+            <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                 <CardHeader>
-                    <CardTitle>Quick Access</CardTitle>
+                    <CardTitle className="gradient-text-primary">Quick Access</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <NavLink href="/dashboard/classes" icon={BookOpen} title="All Classes" description="View school classes schedule" />
-                        <NavLink href="/dashboard/students" icon={Users} title="All Students" description="View school student directory" />
+                        <NavLink href="/dashboard/classes" icon={BookOpen} title="My Classes" description="View your assigned classes" />
+                        <NavLink href="/dashboard/students" icon={Users} title="Students" description="View students in your classes" />
                     </div>
                 </CardContent>
             </Card>
@@ -170,15 +130,15 @@ export default function TeacherDashboard() {
 
 function StatsCard({ title, value, icon: Icon, description, color, bg }: any) {
     return (
-        <Card className="hover-card">
+        <Card className="hover-card border-indigo-100 bg-white/80 backdrop-blur">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
                 <div className={`${bg} p-2 rounded-full`}>
                     <Icon className={`h-4 w-4 ${color}`} />
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
+                <div className="text-2xl font-bold text-slate-900">{value}</div>
                 <p className="text-xs text-muted-foreground">{description}</p>
             </CardContent>
         </Card>
@@ -192,11 +152,11 @@ function NavLink({ href, icon: Icon, title, description }: {
     description: string;
 }) {
     return (
-        <a href={href} className="block p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-all">
+        <a href={href} className="block p-4 border border-indigo-100 rounded-lg hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
             <div className="flex items-center gap-3">
-                <Icon className="h-6 w-6 text-primary" />
+                <Icon className="h-6 w-6 text-indigo-600" />
                 <div>
-                    <p className="font-semibold">{title}</p>
+                    <p className="font-semibold text-slate-900">{title}</p>
                     <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
             </div>

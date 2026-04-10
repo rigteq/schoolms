@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { School, Users, GraduationCap, BookOpen, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState } from "react";
 import AddSchoolForm from "@/components/dashboard/forms/AddSchoolForm";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
 import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
@@ -12,6 +13,13 @@ import { useStats } from "@/lib/hooks/useData";
 
 export default function SuperAdminDashboard() {
     const { stats, loading, mutate } = useStats();
+
+    // Controlled dialog open states for auto-close on success
+    const [addSchoolOpen, setAddSchoolOpen] = useState(false);
+    const [addAdminOpen, setAddAdminOpen] = useState(false);
+    const [addClassOpen, setAddClassOpen] = useState(false);
+    const [addTeacherOpen, setAddTeacherOpen] = useState(false);
+    const [addStudentOpen, setAddStudentOpen] = useState(false);
 
     return (
         <div className="space-y-8">
@@ -30,91 +38,93 @@ export default function SuperAdminDashboard() {
 
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatsCard
-                    title="Total Schools"
-                    value={loading ? "..." : stats.schools}
-                    icon={School}
-                    description="Active institutions"
-                    color="from-blue-600 to-cyan-500"
-                />
-                <StatsCard
-                    title="Total Students"
-                    value={loading ? "..." : stats.students}
-                    icon={Users}
-                    description="Enrolled across network"
-                    color="from-green-500 to-emerald-500"
-                />
-                <StatsCard
-                    title="Total Teachers"
-                    value={loading ? "..." : stats.teachers}
-                    icon={GraduationCap}
-                    description="Qualified educators"
-                    color="from-purple-600 to-pink-500"
-                />
-                <StatsCard
-                    title="Active Classes"
-                    value={loading ? "..." : stats.classes}
-                    icon={BookOpen}
-                    description="Ongoing sessions"
-                    color="from-orange-500 to-red-500"
-                />
+                <StatsCard title="Total Schools" value={loading ? "..." : stats.schools} icon={School} description="Active institutions" color="from-blue-600 to-cyan-500" />
+                <StatsCard title="Total Students" value={loading ? "..." : stats.students} icon={Users} description="Enrolled across network" color="from-green-500 to-emerald-500" />
+                <StatsCard title="Total Teachers" value={loading ? "..." : stats.teachers} icon={GraduationCap} description="Qualified educators" color="from-purple-600 to-pink-500" />
+                <StatsCard title="Active Classes" value={loading ? "..." : stats.classes} icon={BookOpen} description="Ongoing sessions" color="from-orange-500 to-red-500" />
             </div>
 
             {/* Quick Actions */}
             <div>
                 <h3 className="text-2xl font-bold gradient-text-primary mb-4">Quick Actions</h3>
                 <div className="grid gap-4 md:grid-cols-4">
-                    <ActionCard
-                        title="Add School"
-                        icon={School}
-                        description="Register a new institution"
-                        trigger={<Button className="w-full gradient-btn">Create School</Button>}
-                        content={<AddSchoolForm onSuccess={() => mutate()} />}
-                    />
-                    <ActionCard
-                        title="Add Admin"
-                        icon={Users}
-                        description="Create a school administrator"
-                        trigger={<Button className="w-full gradient-btn-success">Create Admin</Button>}
-                        content={<AddAdminForm onSuccess={() => mutate()} />}
-                    />
-                    <ActionCard
-                        title="Add Class"
-                        icon={BookOpen}
-                        description="Create a new class for a school"
-                        trigger={<Button className="w-full gradient-btn-accent">Create Class</Button>}
-                        content={<AddClassForm onSuccess={() => mutate()} />}
-                    />
-                    <ActionCard
-                        title="Add Teacher"
-                        icon={GraduationCap}
-                        description="Onboard a new teacher"
-                        trigger={<Button className="w-full" variant="secondary">Onboard Teacher</Button>}
-                        content={<AddProfileForm roleName="Teacher" onSuccess={() => mutate()} />}
-                    />
+                    {/* Add School */}
+                    <Dialog open={addSchoolOpen} onOpenChange={setAddSchoolOpen}>
+                        <ActionCard title="Add School" icon={School} description="Register a new institution"
+                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn">Create School</Button></DialogTrigger>}
+                        />
+                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader><DialogTitle className="gradient-text-primary">Add School</DialogTitle></DialogHeader>
+                            <div className="py-2">
+                                <AddSchoolForm onSuccess={() => { mutate(); setAddSchoolOpen(false); }} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Add Admin */}
+                    <Dialog open={addAdminOpen} onOpenChange={setAddAdminOpen}>
+                        <ActionCard title="Add Admin" icon={Users} description="Create a school administrator"
+                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn-success">Create Admin</Button></DialogTrigger>}
+                        />
+                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader><DialogTitle className="gradient-text-primary">Add Admin</DialogTitle></DialogHeader>
+                            <div className="py-2">
+                                <AddAdminForm onSuccess={() => { mutate(); setAddAdminOpen(false); }} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Add Class */}
+                    <Dialog open={addClassOpen} onOpenChange={setAddClassOpen}>
+                        <ActionCard title="Add Class" icon={BookOpen} description="Create a new class for a school"
+                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn-accent">Create Class</Button></DialogTrigger>}
+                        />
+                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader><DialogTitle className="gradient-text-primary">Add Class</DialogTitle></DialogHeader>
+                            <div className="py-2">
+                                <AddClassForm onSuccess={() => { mutate(); setAddClassOpen(false); }} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Add Teacher */}
+                    <Dialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen}>
+                        <ActionCard title="Add Teacher" icon={GraduationCap} description="Onboard a new teacher"
+                            trigger={<DialogTrigger asChild><Button className="w-full" variant="secondary">Onboard Teacher</Button></DialogTrigger>}
+                        />
+                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader><DialogTitle className="gradient-text-primary">Add Teacher</DialogTitle></DialogHeader>
+                            <div className="py-2">
+                                <AddProfileForm roleName="Teacher" onSuccess={() => { mutate(); setAddTeacherOpen(false); }} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
+
                 <div className="mt-4 grid gap-4 md:grid-cols-4">
-                    {/* Row 2 Actions if needed */}
-                    <ActionCard
-                        title="Add Student"
-                        icon={Users}
-                        description="Enroll a new student"
-                        trigger={<Button className="w-full" variant="secondary">Enroll Student</Button>}
-                        content={<AddProfileForm roleName="Student" onSuccess={() => mutate()} />}
-                    />
+                    {/* Add Student */}
+                    <Dialog open={addStudentOpen} onOpenChange={setAddStudentOpen}>
+                        <ActionCard title="Add Student" icon={Users} description="Enroll a new student"
+                            trigger={<DialogTrigger asChild><Button className="w-full" variant="secondary">Enroll Student</Button></DialogTrigger>}
+                        />
+                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader><DialogTitle className="gradient-text-primary">Add Student</DialogTitle></DialogHeader>
+                            <div className="py-2">
+                                <AddProfileForm roleName="Student" onSuccess={() => { mutate(); setAddStudentOpen(false); }} />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
-            {/* Recent Activity (Placeholder) */}
+            {/* Recent Activity */}
             <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
                 <CardHeader>
                     <CardTitle className="gradient-text-primary">Recent Activity</CardTitle>
                     <CardDescription className="text-slate-600">Latest system-wide events and updates.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-sm text-slate-500 text-center py-8">
-                        No recent activity to show.
-                    </div>
+                    <div className="text-sm text-slate-500 text-center py-8">No recent activity to show.</div>
                 </CardContent>
             </Card>
         </div>
@@ -139,12 +149,11 @@ function StatsCard({ title, value, icon: Icon, description, color }: any) {
     );
 }
 
-function ActionCard({ title, icon: Icon, description, trigger, content }: {
+function ActionCard({ title, icon: Icon, description, trigger }: {
     title: string;
     icon: React.ComponentType<{ className?: string }>;
     description: string;
     trigger: React.ReactNode;
-    content: React.ReactNode;
 }) {
     return (
         <Card className="flex flex-col justify-between border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 hover-card group overflow-hidden relative">
@@ -157,20 +166,8 @@ function ActionCard({ title, icon: Icon, description, trigger, content }: {
                 <CardDescription className="text-slate-600">{description}</CardDescription>
             </CardHeader>
             <CardContent className="relative">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        {trigger}
-                    </DialogTrigger>
-                    <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
-                        <DialogHeader>
-                            <DialogTitle className="gradient-text-primary">{title}</DialogTitle>
-                        </DialogHeader>
-                        <div className="py-2">
-                            {content}
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                {trigger}
             </CardContent>
         </Card>
-    )
+    );
 }

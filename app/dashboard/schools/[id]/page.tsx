@@ -8,73 +8,86 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import EditSchoolForm from "@/components/dashboard/forms/EditSchoolForm";
+import { toast } from "sonner";
 
 export default function SchoolDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const [school, setSchool] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [editOpen, setEditOpen] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
-    // Sub-lists
     const [classes, setClasses] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
     const [admins, setAdmins] = useState<any[]>([]);
-    const [mounted, setMounted] = useState(false);
 
-    useEffect(() => setMounted(true), []);
+    const fetchSchoolDetails = async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("schools")
+                .select("*")
+                .eq("id", id)
+                .eq("is_deleted", false)
+                .single();
 
-    useEffect(() => {
-        async function fetchSchoolDetails() {
-            if (!id) return;
-            setLoading(true);
-            try {
-                const { data, error } = await supabase
-                    .from("schools")
-                    .select("*")
-                    .eq("id", id)
-                    .single();
+            if (error) throw error;
+            setSchool(data);
 
-                if (error) throw error;
-                setSchool(data);
+            const [classesRes, rolesRes] = await Promise.all([
+                supabase.from("classes").select("*").eq("school_id", id).eq("is_deleted", false),
+                supabase.from("roles").select("id, role_name"),
+            ]);
 
-                const { data: classesData } = await supabase.from("classes").select("*").eq("school_id", id);
+            const roles = rolesRes.data || [];
+            const teacherRoleId = roles.find(r => r.role_name === "Teacher")?.id;
+            const adminRoleId = roles.find(r => r.role_name === "Admin")?.id;
 
-                // Optimize: Fetch roles once or assume known IDs for optimization, 
-                // but for correctness fetching safely.
-                const { data: roles } = await supabase.from("roles").select("id, role_name");
-                const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
-                const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
-                const adminRoleId = roles?.find(r => r.role_name === 'Admin')?.id;
+            const [teachersRes, studentsRes, adminsRes] = await Promise.all([
+                supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", teacherRoleId || "").eq("is_deleted", false),
+                supabase.from("students_data").select("*").eq("school_id", id).eq("is_deleted", false),
+                supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", adminRoleId || "").eq("is_deleted", false),
+            ]);
 
-                const { data: teachersData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", teacherRoleId || "");
-                const { data: studentsData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", studentRoleId || "");
-                const { data: adminsData } = await supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", adminRoleId || "");
-
-                setClasses(classesData || []);
-                setTeachers(teachersData || []);
-                setStudents(studentsData || []);
-                setAdmins(adminsData || []);
-
-            } catch (error) {
-                console.error("Error fetching school:", error);
-            } finally {
-                setLoading(false);
-            }
+            setClasses(classesRes.data || []);
+            setTeachers(teachersRes.data || []);
+            setStudents(studentsRes.data || []);
+            setAdmins(adminsRes.data || []);
+        } catch (error) {
+            console.error("Error fetching school:", error);
+            toast.error("Failed to load school details.");
+        } finally {
+            setLoading(false);
         }
+    };
 
-        fetchSchoolDetails();
-    }, [id]);
+    useEffect(() => { fetchSchoolDetails(); }, [id]);
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure? This will soft delete the school.")) return;
-        await supabase.from("schools").update({ is_deleted: true }).eq("id", id);
-        router.push("/dashboard/schools");
-    }
+        if (!confirm("Are you sure you want to delete this school? This action cannot be undone.")) return;
+        setDeleteLoading(true);
+        try {
+            const { error } = await supabase
+                .from("schools")
+                .update({ is_deleted: true, modified_at: new Date().toISOString() })
+                .eq("id", id);
+            if (error) throw error;
+            toast.success("School deleted successfully.");
+            router.push("/dashboard/schools");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to delete school.");
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
 
-    if (!mounted) return null; // Avoid hydration mismatch on initial render if any
-    if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    if (!school) return <div>School not found</div>;
+    if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-indigo-600" /></div>;
+    if (!school) return <div className="text-center py-20 text-muted-foreground">School not found.</div>;
 
     return (
         <div className="space-y-6">
@@ -85,140 +98,159 @@ export default function SchoolDetailPage() {
             {/* Header Info */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">{school.school_name}</h1>
-                    <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                        <span>{school.address || "No Address"}</span>
-                        <span>•</span>
-                        <span>{school.email || "No Email"}</span>
+                    <h1 className="text-3xl font-bold gradient-text-primary">{school.school_name}</h1>
+                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground mt-1 text-sm">
+                        {school.address && <span>{school.address}</span>}
+                        {school.address && school.email && <span>•</span>}
+                        {school.email && <span>{school.email}</span>}
+                        {school.phone && <><span>•</span><span>{school.phone}</span></>}
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit</Button>
-                    <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="border-indigo-200 hover:bg-indigo-50 text-indigo-700">
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogHeader>
+                                <DialogTitle className="gradient-text-primary">Edit School</DialogTitle>
+                            </DialogHeader>
+                            <div className="py-2">
+                                <EditSchoolForm
+                                    school={school}
+                                    onSuccess={() => {
+                                        setEditOpen(false);
+                                        fetchSchoolDetails();
+                                    }}
+                                />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
+                        {deleteLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        Delete
+                    </Button>
                 </div>
             </div>
 
+            {/* Stats */}
             <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Admins</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{admins.length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{teachers.length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{students.length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{classes.length}</div>
-                    </CardContent>
-                </Card>
+                {[
+                    { label: "Total Admins", value: admins.length },
+                    { label: "Total Teachers", value: teachers.length },
+                    { label: "Total Students", value: students.length },
+                    { label: "Total Classes", value: classes.length },
+                ].map(({ label, value }) => (
+                    <Card key={label} className="border-indigo-100 bg-white/80">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-slate-600">{label}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-slate-900">{value}</div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
-            <div className="bg-transparent">
-                <Tabs defaultValue="classes" className="w-full">
-                    <TabsList className="bg-white shadow-sm rounded-lg p-1">
-                        <TabsTrigger value="classes">Classes</TabsTrigger>
-                        <TabsTrigger value="admins">Admins</TabsTrigger>
-                        <TabsTrigger value="teachers">Teachers</TabsTrigger>
-                        <TabsTrigger value="students">Students</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="classes" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Classes List</div>
-                                <div className="divide-y">
-                                    {classes.map(cls => (
+            {/* Tabs */}
+            <Tabs defaultValue="classes" className="w-full">
+                <TabsList className="bg-white shadow-sm rounded-lg p-1">
+                    <TabsTrigger value="classes">Classes</TabsTrigger>
+                    <TabsTrigger value="admins">Admins</TabsTrigger>
+                    <TabsTrigger value="teachers">Teachers</TabsTrigger>
+                    <TabsTrigger value="students">Students</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="classes" className="mt-4">
+                    <Card className="border-indigo-100">
+                        <CardContent className="p-0">
+                            <div className="p-4 border-b font-medium bg-gray-50/50 text-slate-700">Classes List</div>
+                            <div className="divide-y">
+                                {classes.length === 0
+                                    ? <div className="p-4 text-center text-muted-foreground">No classes found</div>
+                                    : classes.map(cls => (
                                         <div key={cls.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/classes/${cls.id}`)}>
                                             <div>
                                                 <p className="font-medium">{cls.class_name}</p>
                                                 <p className="text-sm text-muted-foreground">{cls.academic_year}</p>
                                             </div>
-                                            <Badge variant={cls.is_deleted ? "destructive" : "secondary"}>{cls.is_deleted ? "Deleted" : "Active"}</Badge>
+                                            <Badge variant="secondary">Active</Badge>
                                         </div>
-                                    ))}
-                                    {classes.length === 0 && <div className="p-4 text-center text-muted-foreground">No classes found</div>}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="admins" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Admins List</div>
-                                <div className="divide-y">
-                                    {admins.map(a => (
-                                        <div key={a.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/admins/${a.id}`)}>
+                                    ))
+                                }
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="admins" className="mt-4">
+                    <Card className="border-indigo-100">
+                        <CardContent className="p-0">
+                            <div className="p-4 border-b font-medium bg-gray-50/50 text-slate-700">Admins List</div>
+                            <div className="divide-y">
+                                {admins.length === 0
+                                    ? <div className="p-4 text-center text-muted-foreground">No admins found</div>
+                                    : admins.map(a => (
+                                        <div key={a.id} className="p-4 flex justify-between hover:bg-gray-50">
                                             <div>
                                                 <p className="font-medium">{a.full_name}</p>
                                                 <p className="text-sm text-muted-foreground">{a.email}</p>
                                             </div>
                                             <Badge variant="outline">Admin</Badge>
                                         </div>
-                                    ))}
-                                    {admins.length === 0 && <div className="p-4 text-center text-muted-foreground">No admins found</div>}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="teachers" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Teachers List</div>
-                                <div className="divide-y">
-                                    {teachers.map(t => (
-                                        <div key={t.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/teachers/${t.id}`)}>
+                                    ))
+                                }
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="teachers" className="mt-4">
+                    <Card className="border-indigo-100">
+                        <CardContent className="p-0">
+                            <div className="p-4 border-b font-medium bg-gray-50/50 text-slate-700">Teachers List</div>
+                            <div className="divide-y">
+                                {teachers.length === 0
+                                    ? <div className="p-4 text-center text-muted-foreground">No teachers found</div>
+                                    : teachers.map(t => (
+                                        <div key={t.id} className="p-4 flex justify-between hover:bg-gray-50">
                                             <div>
                                                 <p className="font-medium">{t.full_name}</p>
                                                 <p className="text-sm text-muted-foreground">{t.email}</p>
                                             </div>
                                             <Badge variant="outline">Teacher</Badge>
                                         </div>
-                                    ))}
-                                    {teachers.length === 0 && <div className="p-4 text-center text-muted-foreground">No teachers found</div>}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="students" className="mt-4">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="p-4 border-b font-medium bg-gray-50/50">Students List</div>
-                                <div className="divide-y">
-                                    {students.map(s => (
-                                        <div key={s.id} className="p-4 flex justify-between hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/students/${s.id}`)}>
+                                    ))
+                                }
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="students" className="mt-4">
+                    <Card className="border-indigo-100">
+                        <CardContent className="p-0">
+                            <div className="p-4 border-b font-medium bg-gray-50/50 text-slate-700">Students List</div>
+                            <div className="divide-y">
+                                {students.length === 0
+                                    ? <div className="p-4 text-center text-muted-foreground">No students found</div>
+                                    : students.map(s => (
+                                        <div key={s.id} className="p-4 flex justify-between hover:bg-gray-50">
                                             <div>
                                                 <p className="font-medium">{s.full_name}</p>
-                                                <p className="text-sm text-muted-foreground">{s.email}</p>
+                                                <p className="text-sm text-muted-foreground">{s.email || "No email"}</p>
                                             </div>
                                             <Badge variant="outline">Student</Badge>
                                         </div>
-                                    ))}
-                                    {students.length === 0 && <div className="p-4 text-center text-muted-foreground">No students found</div>}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
-            </div>
+                                    ))
+                                }
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }

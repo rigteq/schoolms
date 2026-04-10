@@ -5,8 +5,9 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createUserWithRole } from "@/app/actions/user-actions";
 import { getAgeValidationError, getMaxDate, getMinDate } from "@/lib/utils/validation";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
     const [dobError, setDobError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
+    const [showPassword, setShowPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         school_id: defaultSchoolId || "",
@@ -32,13 +34,13 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         phone: "",
         current_address: "",
         dob: "",
-        subject_name: "", // For Teacher
-        class_id: "",     // For Student
+        subject_name: "",
+        class_id: "",
     });
 
     useEffect(() => {
         async function fetchSchools() {
-            const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
+            const { data } = await supabase.from("schools").select("id, school_name").eq("is_deleted", false).order("school_name");
             if (data) setSchools(data);
         }
         if (!defaultSchoolId) {
@@ -46,7 +48,6 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         }
     }, [defaultSchoolId]);
 
-    // Fetch classes when school_id changes (and if role is Student)
     useEffect(() => {
         const sid = defaultSchoolId || formData.school_id;
         if (sid && roleName === "Student") {
@@ -55,6 +56,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                     .from("classes")
                     .select("id, class_name")
                     .eq("school_id", sid)
+                    .eq("is_deleted", false)
                     .order("class_name");
                 if (data) setClasses(data);
                 else setClasses([]);
@@ -68,7 +70,6 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const dob = e.target.value;
         setFormData({ ...formData, dob });
-
         const ageError = getAgeValidationError(dob, 4, 120);
         setDobError(ageError);
     };
@@ -110,7 +111,6 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 school_id: schoolIdToUse,
                 role_name: roleName,
                 address: formData.current_address,
-                // Pass optional fields
                 subject_name: roleName === "Teacher" ? formData.subject_name : undefined,
                 class_id: roleName === "Student" ? formData.class_id : undefined,
             });
@@ -147,11 +147,12 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 </div>
             )}
 
+            {/* School selector (when not pre-set) */}
             {!defaultSchoolId && (
                 <div className="space-y-2">
                     <Label htmlFor="school">School</Label>
                     <Select
-                        onValueChange={(val) => setFormData({ ...formData, school_id: val, class_id: "" })} // Reset class if school changes
+                        onValueChange={(val) => setFormData({ ...formData, school_id: val, class_id: "" })}
                         value={formData.school_id}
                     >
                         <SelectTrigger>
@@ -168,18 +169,22 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 </div>
             )}
 
+            {/* Class selector for Students */}
             {roleName === "Student" && (
                 <div className="space-y-2">
-                    <Label htmlFor="class">Class (Optional)</Label>
+                    <Label htmlFor="class">Class <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
                     <Select
-                        onValueChange={(val) => setFormData({ ...formData, class_id: val })}
-                        value={formData.class_id}
+                        onValueChange={(val) => setFormData({ ...formData, class_id: val === "none" ? "" : val })}
+                        value={formData.class_id || "none"}
                         disabled={!formData.school_id && !defaultSchoolId}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder={(!formData.school_id && !defaultSchoolId) ? "Select a school first" : "Select a class"} />
                         </SelectTrigger>
                         <SelectContent className="bg-white">
+                            <SelectItem value="none" className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100 text-slate-500">
+                                — No Class —
+                            </SelectItem>
                             {classes.map(cls => (
                                 <SelectItem key={cls.id} value={cls.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
                                     {cls.class_name}
@@ -190,9 +195,10 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 </div>
             )}
 
+            {/* Subject for Teachers */}
             {roleName === "Teacher" && (
                 <div className="space-y-2">
-                    <Label htmlFor="subject">Subject</Label>
+                    <Label htmlFor="subject">Subject Specialization</Label>
                     <Input
                         id="subject"
                         value={formData.subject_name}
@@ -202,6 +208,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 </div>
             )}
 
+            {/* Full Name */}
             <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name</Label>
                 <Input
@@ -213,33 +220,48 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 />
             </div>
 
+            {/* Email & Password row */}
             <div className={`grid ${roleName === "Student" ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
                 <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">
+                        Email {roleName === "Student" && <span className="text-slate-400 text-xs font-normal">(Optional)</span>}
+                    </Label>
                     <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        required
+                        required={roleName !== "Student"}
                         placeholder="john@example.com"
                     />
                 </div>
                 {roleName !== "Student" && (
                     <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            required
-                            placeholder="******"
-                        />
+                        <div className="relative">
+                            <Input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                required
+                                placeholder="Min. 6 characters"
+                                className="pr-10"
+                            />
+                            <button
+                                type="button"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
 
+            {/* Phone & DOB row */}
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
@@ -262,20 +284,20 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         max={getMaxDate(4)}
                     />
                     {dobError && (
-                        <div className="text-red-500 text-sm">
-                            {dobError}
-                        </div>
+                        <div className="text-red-500 text-sm">{dobError}</div>
                     )}
                 </div>
             </div>
 
+            {/* Address — textarea for comfortable multi-line entry */}
             <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
-                <Input
+                <Textarea
                     id="address"
                     value={formData.current_address}
                     onChange={(e) => setFormData({ ...formData, current_address: e.target.value })}
-                    placeholder="Full Address"
+                    placeholder="Full address including city, state and pin code"
+                    rows={3}
                 />
             </div>
 

@@ -17,7 +17,8 @@ import {
     ChevronRight,
     FileType,
     ListChecks,
-    PlusCircle
+    PlusCircle,
+    FileText
 } from "lucide-react";
 
 interface SidebarProps {
@@ -36,7 +37,7 @@ interface NavItem {
 
 export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
     const pathname = usePathname();
-    const { role } = useAuth();
+    const { role, isLoading } = useAuth();
     const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
 
     const links: NavItem[] = [
@@ -46,6 +47,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
         { name: "Classes", href: "/dashboard/classes", icon: BookOpen, roles: ["Superadmin", "Admin", "Teacher"] },
         { name: "Teachers", href: "/dashboard/teachers", icon: GraduationCap, roles: ["Superadmin", "Admin"] },
         { name: "Students", href: "/dashboard/students", icon: Users, roles: ["Superadmin", "Admin", "Teacher"] },
+        { name: "Report Cards", href: "/dashboard/report-cards", icon: FileText, roles: ["Superadmin", "Admin", "Teacher"] },
         {
             name: "Leaves",
             href: "/dashboard/leaves",
@@ -95,7 +97,14 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
 
                 <div className="flex flex-col justify-between h-full p-4 pt-4 lg:pt-6">
                     <nav className="space-y-1">
-                        {filteredLinks.map((link) => {
+                        {isLoading ? (
+                            // Skeleton to prevent white flash during auth load
+                            <div className="space-y-2 animate-pulse">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-10 bg-indigo-50 rounded-lg" />
+                                ))}
+                            </div>
+                        ) : filteredLinks.map((link) => {
                             const Icon = link.icon;
                             // Fix Dashboard Highlight: Exact match for /dashboard
                             const isActive = link.href === "/dashboard"
