@@ -91,7 +91,7 @@ export default function ClassesPage() {
                             <DialogTrigger asChild>
                                 <Button className="shrink-0 gradient-btn"><Plus className="mr-2 h-4 w-4" /> Add Class</Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogContent className="bg-white">
                                 <DialogHeader>
                                     <DialogTitle className="gradient-text-primary">Create New Class</DialogTitle>
                                 </DialogHeader>
@@ -105,7 +105,7 @@ export default function ClassesPage() {
                         </Dialog>
                         {/* Edit Class Dialog */}
                         <Dialog open={!!editClass} onOpenChange={(open) => { if (!open) setEditClass(null); }}>
-                            <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogContent className="bg-white">
                                 <DialogHeader>
                                     <DialogTitle className="gradient-text-primary">Edit Class</DialogTitle>
                                 </DialogHeader>

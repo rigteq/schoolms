@@ -5,7 +5,17 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School, ShieldCheck } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School, ShieldCheck } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import EditProfileDialog from "@/components/dashboard/forms/EditProfileDialog";
 
 export default function AdminDetailPage() {
@@ -14,6 +24,8 @@ export default function AdminDetailPage() {
     const [admin, setAdmin] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => setMounted(true), []);
 
@@ -23,18 +35,14 @@ export default function AdminDetailPage() {
         try {
             const { data, error } = await supabase
                 .from("profiles")
-                .select(`
-             *,
-             schools (school_name)
-          `)
+                .select(`*, schools (school_name)`)
                 .eq("id", id)
                 .single();
 
             if (error) throw error;
             setAdmin(data);
-
-        } catch (error) {
-            console.error("Error fetching admin:", error);
+        } catch {
+            // silently fail — user sees empty state
         } finally {
             setLoading(false);
         }
@@ -45,14 +53,15 @@ export default function AdminDetailPage() {
     }, [id]);
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure? This will soft delete the admin.")) return;
+        setDeleting(true);
         await supabase.from("profiles").update({ is_deleted: true }).eq("id", id);
+        setDeleting(false);
         router.push("/dashboard/admins");
-    }
+    };
 
     if (!mounted) return null;
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    if (!admin) return <div>Admin not found</div>;
+    if (!admin) return <div className="p-8 text-center text-muted-foreground">Admin not found</div>;
 
     return (
         <div className="space-y-6">
@@ -88,11 +97,36 @@ export default function AdminDetailPage() {
                         </div>
                         <div className="flex flex-col gap-2">
                             <EditProfileDialog profile={admin} onSuccess={fetchAdminDetails} />
-                            <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                            <Button
+                                variant="destructive"
+                                onClick={() => setDeleteOpen(true)}
+                                disabled={deleting}
+                            >
+                                {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete
+                            </Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Delete Confirmation */}
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Admin?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will soft-delete <strong>{admin.full_name}</strong>. They will no longer have access to the system.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+                            Yes, Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

@@ -7,6 +7,11 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, UserPlus, BookOpen, ArrowLeft, Edit } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +30,11 @@ export default function ClassDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [editOpen, setEditOpen] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Confirmation dialogs
+    const [deleteClassOpen, setDeleteClassOpen] = useState(false);
+    const [removeStudentTarget, setRemoveStudentTarget] = useState<{ id: string; name: string } | null>(null);
+    const [removeTeacherTarget, setRemoveTeacherTarget] = useState<{ id: string; name: string } | null>(null);
 
     // Modal States
     const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -64,7 +74,6 @@ export default function ClassDetailsPage() {
             setStudents(studRes.data || []);
             setTeachers(teachRes.data || []);
         } catch (error: any) {
-            console.error(error);
             toast.error("Failed to load class details");
         } finally {
             setLoading(false);
@@ -97,7 +106,6 @@ export default function ClassDetailsPage() {
     };
 
     const handleDeleteClass = async () => {
-        if (!confirm("Are you sure you want to delete this class? This cannot be undone.")) return;
         setDeleteLoading(true);
         try {
             const { error } = await supabase
@@ -153,6 +161,16 @@ export default function ClassDetailsPage() {
                 if (updateError) throw updateError;
             }
 
+            // ── Sync class_teacher_id on the classes table ──────────────────
+            // If no class teacher is designated yet, set this teacher as the class teacher
+            if (!classData.profiles?.id) {
+                const { error: clsError } = await supabase
+                    .from("classes")
+                    .update({ class_teacher_id: selectedTeacher })
+                    .eq("id", classId);
+                if (clsError) throw clsError;
+            }
+
             toast.success("Teacher assigned to class");
             setIsAddTeacherOpen(false);
             setSelectedTeacher("");
@@ -165,11 +183,11 @@ export default function ClassDetailsPage() {
     };
 
     const handleRemoveStudent = async (studentId: string) => {
-        if (!confirm("Remove this student from the class?")) return;
         try {
             const { error } = await supabase.from("students_data").update({ class_id: null }).eq("id", studentId);
             if (error) throw error;
-            toast.success("Student removed");
+            toast.success("Student removed from class");
+            setRemoveStudentTarget(null);
             fetchClassDetails();
         } catch (err: any) {
             toast.error(err.message);
@@ -177,13 +195,24 @@ export default function ClassDetailsPage() {
     };
 
     const handleRemoveTeacher = async (teacherId: string) => {
-        if (!confirm("Remove this teacher from the class?")) return;
         try {
             const { data: current } = await supabase.from("teachers_data").select("class_ids").eq("id", teacherId).single();
             const newIds = (current?.class_ids || []).filter((id: string) => id !== classId);
             const { error } = await supabase.from("teachers_data").update({ class_ids: newIds }).eq("id", teacherId);
             if (error) throw error;
-            toast.success("Teacher removed");
+
+            // ── Sync class_teacher_id on the classes table ──────────────────
+            // If this teacher was the designated class teacher, clear that field
+            if (classData.profiles?.id === teacherId) {
+                const { error: clsError } = await supabase
+                    .from("classes")
+                    .update({ class_teacher_id: null })
+                    .eq("id", classId);
+                if (clsError) throw clsError;
+            }
+
+            toast.success("Teacher removed from class");
+            setRemoveTeacherTarget(null);
             fetchClassDetails();
         } catch (err: any) {
             toast.error(err.message);
@@ -220,7 +249,7 @@ export default function ClassDetailsPage() {
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                            <DialogContent className="bg-white">
                                 <DialogHeader>
                                     <DialogTitle className="gradient-text-primary">Edit Class</DialogTitle>
                                 </DialogHeader>
@@ -233,13 +262,77 @@ export default function ClassDetailsPage() {
                             </DialogContent>
                         </Dialog>
 
-                        <Button variant="destructive" onClick={handleDeleteClass} disabled={deleteLoading}>
+                        <Button
+                            variant="destructive"
+                            onClick={() => setDeleteClassOpen(true)}
+                            disabled={deleteLoading}
+                        >
                             {deleteLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                             Delete Class
                         </Button>
                     </div>
                 )}
             </div>
+
+            {/* Delete Class Confirmation */}
+            <AlertDialog open={deleteClassOpen} onOpenChange={setDeleteClassOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Class?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{classData.class_name}</strong>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteClass} className="bg-red-600 hover:bg-red-700 text-white">
+                            Yes, Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Remove Student Confirmation */}
+            <AlertDialog open={!!removeStudentTarget} onOpenChange={(open) => { if (!open) setRemoveStudentTarget(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Student?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Remove <strong>{removeStudentTarget?.name}</strong> from this class? They will become unassigned.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => removeStudentTarget && handleRemoveStudent(removeStudentTarget.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Yes, Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Remove Teacher Confirmation */}
+            <AlertDialog open={!!removeTeacherTarget} onOpenChange={(open) => { if (!open) setRemoveTeacherTarget(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Remove <strong>{removeTeacherTarget?.name}</strong> from this class?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => removeTeacherTarget && handleRemoveTeacher(removeTeacherTarget.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Yes, Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="grid md:grid-cols-2 gap-6">
                 {/* Teachers Section */}
@@ -299,8 +392,11 @@ export default function ClassDetailsPage() {
                                             </div>
                                         </div>
                                         {canManage && (
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                onClick={() => handleRemoveTeacher(t.id)}>
+                                            <Button
+                                                size="icon" variant="ghost"
+                                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                onClick={() => setRemoveTeacherTarget({ id: t.id, name: t.profiles?.full_name || "Teacher" })}
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         )}
@@ -368,8 +464,11 @@ export default function ClassDetailsPage() {
                                             </div>
                                         </div>
                                         {canManage && (
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                onClick={() => handleRemoveStudent(s.id)}>
+                                            <Button
+                                                size="icon" variant="ghost"
+                                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                onClick={() => setRemoveStudentTarget({ id: s.id, name: s.full_name })}
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         )}

@@ -150,7 +150,8 @@ export function useClasses({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UseP
 
     const fetcher = async () => {
         let query = supabase.from("classes")
-            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" });
+            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
+            .eq("is_deleted", false);
         if (search) query = query.ilike("class_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -181,21 +182,25 @@ export function useStats() {
     const key = 'stats';
 
     const fetcher = async () => {
-        const { count: schoolsCount } = await supabase.from("schools").select("*", { count: 'exact', head: true }).eq("is_deleted", false);
+        const [schoolsResult, rolesResult, studentsResult, classesResult] = await Promise.all([
+            supabase.from("schools").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
+            supabase.from("roles").select("id, role_name"),
+            supabase.from("students_data").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
+            supabase.from("classes").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
+        ]);
 
-        const { data: roles } = await supabase.from("roles").select("id, role_name");
-        const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
-        const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
-
-        const { count: studentsCount } = await supabase.from("students_data").select("*", { count: 'exact', head: true }).eq("is_deleted", false);
-        const { count: teachersCount } = await supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("role_id", teacherRoleId || "").eq("is_deleted", false);
-        const { count: classesCount } = await supabase.from("classes").select("*", { count: 'exact', head: true }).eq("is_deleted", false);
+        const teacherRoleId = rolesResult.data?.find(r => r.role_name === 'Teacher')?.id;
+        const teachersResult = await supabase
+            .from("profiles")
+            .select("*", { count: 'exact', head: true })
+            .eq("role_id", teacherRoleId || "")
+            .eq("is_deleted", false);
 
         return {
-            schools: schoolsCount || 0,
-            students: studentsCount || 0,
-            teachers: teachersCount || 0,
-            classes: classesCount || 0,
+            schools: schoolsResult.count || 0,
+            students: studentsResult.count || 0,
+            teachers: teachersResult.count || 0,
+            classes: classesResult.count || 0,
         };
     };
 
@@ -221,29 +226,28 @@ export function useSchoolStats(schoolId: string | undefined) {
         if (!schoolId) return { teachers: 0, students: 0, classes: 0 };
 
         const { data: roles } = await supabase.from("roles").select("id, role_name");
-        const studentRoleId = roles?.find(r => r.role_name === 'Student')?.id;
         const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
 
-        const { count: teachersCount } = await supabase.from("profiles")
-            .select("*", { count: 'exact', head: true })
-            .eq("school_id", schoolId)
-            .eq("role_id", teacherRoleId || "")
-            .eq("is_deleted", false);
-
-        const { count: studentsCount } = await supabase.from("students_data")
-            .select("*", { count: 'exact', head: true })
-            .eq("school_id", schoolId)
-            .eq("is_deleted", false);
-
-        const { count: classesCount } = await supabase.from("classes")
-            .select("*", { count: 'exact', head: true })
-            .eq("school_id", schoolId)
-            .eq("is_deleted", false);
+        const [teachersResult, studentsResult, classesResult] = await Promise.all([
+            supabase.from("profiles")
+                .select("*", { count: 'exact', head: true })
+                .eq("school_id", schoolId)
+                .eq("role_id", teacherRoleId || "")
+                .eq("is_deleted", false),
+            supabase.from("students_data")
+                .select("*", { count: 'exact', head: true })
+                .eq("school_id", schoolId)
+                .eq("is_deleted", false),
+            supabase.from("classes")
+                .select("*", { count: 'exact', head: true })
+                .eq("school_id", schoolId)
+                .eq("is_deleted", false),
+        ]);
 
         return {
-            teachers: teachersCount || 0,
-            students: studentsCount || 0,
-            classes: classesCount || 0,
+            teachers: teachersResult.count || 0,
+            students: studentsResult.count || 0,
+            classes: classesResult.count || 0,
         };
     };
 

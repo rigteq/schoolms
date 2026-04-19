@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, GraduationCap, BookOpen, BarChart3, Loader2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
@@ -61,72 +61,127 @@ export default function AdminDashboard() {
             <div>
                 <h3 className="text-2xl font-bold gradient-text-primary mb-4">Quick Actions</h3>
                 <div className="grid gap-4 md:grid-cols-3">
+
                     {/* Add Teacher */}
-                    <Dialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen}>
-                        <ActionCard
-                            title="Add Teacher"
-                            icon={GraduationCap}
-                            description="Onboard a new teacher"
-                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn">Add Teacher</Button></DialogTrigger>}
-                        />
-                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
-                            <DialogHeader>
-                                <DialogTitle className="gradient-text-primary">Add Teacher</DialogTitle>
-                            </DialogHeader>
-                            <div className="py-2">
-                                <AddProfileForm
-                                    roleName="Teacher"
-                                    defaultSchoolId={schoolId}
-                                    onSuccess={() => { mutate(); setAddTeacherOpen(false); }}
-                                />
+                    <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 hover:shadow-lg transition-all group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                        <CardHeader className="relative">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500">
+                                    <GraduationCap className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base text-slate-900">Add Teacher</CardTitle>
+                                    <CardDescription className="text-slate-600">Onboard a new teacher</CardDescription>
+                                </div>
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                        </CardHeader>
+                        <CardContent className="relative">
+                            <Button
+                                className="w-full gradient-btn text-white"
+                                onClick={() => setAddTeacherOpen(true)}
+                            >
+                                Add Teacher
+                            </Button>
+                        </CardContent>
+                    </Card>
 
                     {/* Add Student */}
-                    <Dialog open={addStudentOpen} onOpenChange={setAddStudentOpen}>
-                        <ActionCard
-                            title="Add Student"
-                            icon={Users}
-                            description="Enroll a new student"
-                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn-success">Add Student</Button></DialogTrigger>}
-                        />
-                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
-                            <DialogHeader>
-                                <DialogTitle className="gradient-text-primary">Add Student</DialogTitle>
-                            </DialogHeader>
-                            <div className="py-2">
-                                <AddProfileForm
-                                    roleName="Student"
-                                    defaultSchoolId={schoolId}
-                                    onSuccess={() => { mutate(); setAddStudentOpen(false); }}
-                                />
+                    <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 hover:shadow-lg transition-all group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                        <CardHeader className="relative">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-cyan-500">
+                                    <Users className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base text-slate-900">Add Student</CardTitle>
+                                    <CardDescription className="text-slate-600">Enroll a new student</CardDescription>
+                                </div>
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                        </CardHeader>
+                        <CardContent className="relative">
+                            <Button
+                                className="w-full gradient-btn-success text-white"
+                                onClick={() => setAddStudentOpen(true)}
+                            >
+                                Add Student
+                            </Button>
+                        </CardContent>
+                    </Card>
 
                     {/* Create Class */}
-                    <Dialog open={addClassOpen} onOpenChange={setAddClassOpen}>
-                        <ActionCard
-                            title="Create Class"
-                            icon={BookOpen}
-                            description="Set up a new class"
-                            trigger={<DialogTrigger asChild><Button className="w-full gradient-btn-accent">Create Class</Button></DialogTrigger>}
-                        />
-                        <DialogContent className="max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-indigo-50/30">
-                            <DialogHeader>
-                                <DialogTitle className="gradient-text-primary">Create Class</DialogTitle>
-                            </DialogHeader>
-                            <div className="py-2">
-                                <AddClassForm
-                                    defaultSchoolId={schoolId}
-                                    onSuccess={() => { mutate(); setAddClassOpen(false); }}
-                                />
+                    <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 hover:shadow-lg transition-all group overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+                        <CardHeader className="relative">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500">
+                                    <BookOpen className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base text-slate-900">Create Class</CardTitle>
+                                    <CardDescription className="text-slate-600">Set up a new class</CardDescription>
+                                </div>
                             </div>
-                        </DialogContent>
-                    </Dialog>
+                        </CardHeader>
+                        <CardContent className="relative">
+                            <Button
+                                className="w-full gradient-btn-accent text-white"
+                                onClick={() => setAddClassOpen(true)}
+                            >
+                                Create Class
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
+
+            {/* Add Teacher Dialog */}
+            <Dialog open={addTeacherOpen} onOpenChange={setAddTeacherOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="gradient-text-primary">Add Teacher</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <AddProfileForm
+                            roleName="Teacher"
+                            defaultSchoolId={schoolId}
+                            onSuccess={() => { mutate(); setAddTeacherOpen(false); }}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Student Dialog */}
+            <Dialog open={addStudentOpen} onOpenChange={setAddStudentOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="gradient-text-primary">Add Student</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <AddProfileForm
+                            roleName="Student"
+                            defaultSchoolId={schoolId}
+                            onSuccess={() => { mutate(); setAddStudentOpen(false); }}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Class Dialog */}
+            <Dialog open={addClassOpen} onOpenChange={setAddClassOpen}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="gradient-text-primary">Create Class</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <AddClassForm
+                            defaultSchoolId={schoolId}
+                            onSuccess={() => { mutate(); setAddClassOpen(false); }}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -149,33 +204,6 @@ function StatsCard({ title, value, icon: Icon, isText = false, color = "from-ind
             </CardHeader>
             <CardContent className="relative">
                 <div className={`font-bold text-slate-900 ${isText ? "text-lg truncate" : "text-3xl"}`}>{value}</div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function ActionCard({ title, icon: Icon, description, trigger }: {
-    title: string;
-    icon: React.ComponentType<{ className?: string }>;
-    description: string;
-    trigger: React.ReactNode;
-}) {
-    return (
-        <Card className="hover-card border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30 cursor-pointer transition-all hover:shadow-lg group overflow-hidden relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-            <CardHeader className="relative">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-600 to-cyan-500">
-                        <Icon className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-base text-slate-900">{title}</CardTitle>
-                        <CardDescription className="text-slate-600">{description}</CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="relative">
-                {trigger}
             </CardContent>
         </Card>
     );

@@ -9,6 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ArrowLeft, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import EditSchoolForm from "@/components/dashboard/forms/EditSchoolForm";
 import { toast } from "sonner";
 
@@ -18,6 +23,7 @@ export default function SchoolDetailPage() {
     const [school, setSchool] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [editOpen, setEditOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     const [classes, setClasses] = useState<any[]>([]);
@@ -58,8 +64,7 @@ export default function SchoolDetailPage() {
             setTeachers(teachersRes.data || []);
             setStudents(studentsRes.data || []);
             setAdmins(adminsRes.data || []);
-        } catch (error) {
-            console.error("Error fetching school:", error);
+        } catch {
             toast.error("Failed to load school details.");
         } finally {
             setLoading(false);
@@ -69,7 +74,6 @@ export default function SchoolDetailPage() {
     useEffect(() => { fetchSchoolDetails(); }, [id]);
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure you want to delete this school? This action cannot be undone.")) return;
         setDeleteLoading(true);
         try {
             const { error } = await supabase
@@ -113,7 +117,7 @@ export default function SchoolDetailPage() {
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-gradient-to-br from-white to-indigo-50/30">
+                        <DialogContent className="bg-white">
                             <DialogHeader>
                                 <DialogTitle className="gradient-text-primary">Edit School</DialogTitle>
                             </DialogHeader>
@@ -128,12 +132,30 @@ export default function SchoolDetailPage() {
                             </div>
                         </DialogContent>
                     </Dialog>
-                    <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
+                    <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={deleteLoading}>
                         {deleteLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                         Delete
                     </Button>
                 </div>
             </div>
+
+            {/* Delete Confirmation */}
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete School?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{school.school_name}</strong>? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+                            Yes, Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Stats */}
             <div className="grid gap-4 md:grid-cols-4">

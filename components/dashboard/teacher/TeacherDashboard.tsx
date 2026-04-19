@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 export default function TeacherDashboard() {
     const { profile, isLoading: authLoading } = useAuth();
@@ -152,7 +153,7 @@ function NavLink({ href, icon: Icon, title, description }: {
     description: string;
 }) {
     return (
-        <a href={href} className="block p-4 border border-indigo-100 rounded-lg hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
+        <Link href={href} className="block p-4 border border-indigo-100 rounded-lg hover:border-indigo-300 hover:bg-indigo-50/50 transition-all">
             <div className="flex items-center gap-3">
                 <Icon className="h-6 w-6 text-indigo-600" />
                 <div>
@@ -160,6 +161,6 @@ function NavLink({ href, icon: Icon, title, description }: {
                     <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
             </div>
-        </a>
+        </Link>
     );
 }
