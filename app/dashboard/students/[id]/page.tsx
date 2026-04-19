@@ -5,9 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import EditProfileDialog from "@/components/dashboard/forms/EditProfileDialog";
 
 export default function StudentDetailPagePage() {
@@ -18,6 +27,8 @@ export default function StudentDetailPagePage() {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [mounted, setMounted] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => setMounted(true), []);
 
@@ -55,7 +66,6 @@ export default function StudentDetailPagePage() {
                 setEnrolledClass(null);
                 setTeachers([]);
             }
-
         } catch (error) {
             console.error("Error fetching student:", error);
         } finally {
@@ -68,10 +78,11 @@ export default function StudentDetailPagePage() {
     }, [id]);
 
     const handleDelete = async () => {
-        if (!confirm("Are you sure? This will soft delete the student.")) return;
+        setDeleting(true);
         await supabase.from("students_data").update({ is_deleted: true }).eq("id", id);
+        setDeleting(false);
         router.push("/dashboard/students");
-    }
+    };
 
     if (!mounted) return null;
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -110,11 +121,39 @@ export default function StudentDetailPagePage() {
                         </div>
                         <div className="flex flex-col gap-2">
                             <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} isStudent={true} />
-                            <Button variant="destructive" onClick={handleDelete}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                            <Button
+                                variant="destructive"
+                                onClick={() => setDeleteOpen(true)}
+                                disabled={deleting}
+                            >
+                                {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                Delete
+                            </Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-slate-900">Delete Student?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-slate-600">
+                            This will soft-delete <strong>{student.full_name}</strong>. They will no longer appear in active records.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="border-slate-200">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            Yes, Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
@@ -141,7 +180,11 @@ export default function StudentDetailPagePage() {
                         <CardContent className="p-0">
                             <div className="divide-y">
                                 {teachers.map((t) => (
-                                    <div key={t.id} className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/dashboard/teachers/${t.id}`)}>
+                                    <div
+                                        key={t.id}
+                                        className="p-4 flex justify-between items-center hover:bg-gray-50 cursor-pointer"
+                                        onClick={() => router.push(`/dashboard/teachers/${t.id}`)}
+                                    >
                                         <div>
                                             <p className="font-medium">{t.full_name}</p>
                                             <p className="text-xs text-muted-foreground">{t.email}</p>
@@ -149,7 +192,9 @@ export default function StudentDetailPagePage() {
                                         <Badge variant="outline">{t.subject || "Teacher"}</Badge>
                                     </div>
                                 ))}
-                                {teachers.length === 0 && <div className="p-4 text-center text-muted-foreground">No teachers found for current class.</div>}
+                                {teachers.length === 0 && (
+                                    <div className="p-4 text-center text-muted-foreground">No teachers found for current class.</div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

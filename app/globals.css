@@ -197,10 +197,28 @@
 
 .gradient-btn-accent {
   background: linear-gradient(135deg, #F97316 0%, #F59E0B 100%);
+  color: #ffffff;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-btn-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(249, 115, 22, 0.3);
 }
 
 .gradient-btn-success {
   background: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+  color: #ffffff;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.gradient-btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(16, 185, 129, 0.3);
 }
 
 /* Smooth Body Background */

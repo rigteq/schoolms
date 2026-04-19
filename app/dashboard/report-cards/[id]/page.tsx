@@ -13,6 +13,16 @@ import {
     TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Loader2, ArrowLeft, Edit, Trash2,
     FileText, User, BookOpen, Calendar,
     CheckCircle2, Clock, School
@@ -39,13 +49,13 @@ export default function ReportCardDetailPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     const canManage = role === "Superadmin" || role === "Admin";
     const canEdit = role === "Superadmin" || role === "Admin" || role === "Teacher";
     const canDelete = role === "Superadmin" || role === "Admin";
 
     const handleDelete = async () => {
-        if (!confirm("Delete this report card? This action cannot be undone.")) return;
         setDeleting(true);
         const { error } = await supabase
             .from("report_cards")
@@ -170,16 +180,37 @@ export default function ReportCardDetailPage() {
                     )}
                     <DownloadButton reportCard={reportCard} size="sm" label="Download PDF" />
                     {canDelete && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleDelete}
-                            disabled={deleting}
-                            className="gap-2 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
-                        >
-                            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                            Delete
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDeleteConfirmOpen(true)}
+                                disabled={deleting}
+                                className="gap-2 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                            >
+                                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                Delete
+                            </Button>
+                            <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                                <AlertDialogContent className="bg-white">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-slate-900">Delete Report Card?</AlertDialogTitle>
+                                        <AlertDialogDescription className="text-slate-600">
+                                            This will permanently remove this report card. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel className="border-slate-200">Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={handleDelete}
+                                            className="bg-red-600 hover:bg-red-700 text-white"
+                                        >
+                                            Yes, Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </>
                     )}
                 </div>
             </div>

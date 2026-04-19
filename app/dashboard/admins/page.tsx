@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from 
 import AddAdminForm from "@/components/dashboard/forms/AddAdminForm";
 import { useAdmins } from "@/lib/hooks/useData";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 50;
 
 const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";

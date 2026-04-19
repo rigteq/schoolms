@@ -201,8 +201,8 @@ export default function ReportCardForm({
                 // Delete old subjects and re-insert
                 await supabase.from("report_card_subjects").delete().eq("report_card_id", cardId);
             } else {
-                // Check if a report card already exists for this student, year, and term
-                const { data: existingCards, error: checkError } = await supabase
+                // Check if an active (non-deleted) report card already exists
+                const { data: activeCards, error: activeCheckError } = await supabase
                     .from("report_cards")
                     .select("id")
                     .eq("student_id", form.student_id)
@@ -211,31 +211,67 @@ export default function ReportCardForm({
                     .eq("is_deleted", false)
                     .limit(1);
 
-                if (checkError) throw checkError;
+                if (activeCheckError) throw activeCheckError;
 
-                if (existingCards && existingCards.length > 0) {
+                if (activeCards && activeCards.length > 0) {
                     toast.error("A report card already exists for this student in this term. Please edit the existing one instead.");
                     setSaving(false);
                     return;
                 }
 
-                // Insert new
-                const { data, error } = await supabase
+                // Check if a SOFT-DELETED record exists (unique constraint still applies)
+                const { data: deletedCards, error: deletedCheckError } = await supabase
                     .from("report_cards")
-                    .insert({
-                        student_id: form.student_id,
-                        school_id: effectiveSchoolId,
-                        class_id: form.class_id || null,
-                        academic_year: form.academic_year,
-                        term: form.term,
-                        remarks: form.remarks,
-                        created_by: profile?.id,
-                        is_published: form.is_published,
-                    })
                     .select("id")
-                    .single();
-                if (error) throw error;
-                cardId = data.id;
+                    .eq("student_id", form.student_id)
+                    .eq("academic_year", form.academic_year)
+                    .eq("term", form.term)
+                    .eq("is_deleted", true)
+                    .limit(1);
+
+                if (deletedCheckError) throw deletedCheckError;
+
+                if (deletedCards && deletedCards.length > 0) {
+                    // Restore the soft-deleted record instead of inserting a new one
+                    const restoreId = deletedCards[0].id;
+                    const { error: restoreError } = await supabase
+                        .from("report_cards")
+                        .update({
+                            is_deleted: false,
+                            school_id: effectiveSchoolId,
+                            class_id: form.class_id || null,
+                            academic_year: form.academic_year,
+                            term: form.term,
+                            remarks: form.remarks,
+                            created_by: profile?.id,
+                            is_published: form.is_published,
+                            modified_at: new Date().toISOString(),
+                        })
+                        .eq("id", restoreId);
+                    if (restoreError) throw restoreError;
+
+                    // Delete old subjects for the restored record
+                    await supabase.from("report_card_subjects").delete().eq("report_card_id", restoreId);
+                    cardId = restoreId;
+                } else {
+                    // Insert brand new record
+                    const { data, error } = await supabase
+                        .from("report_cards")
+                        .insert({
+                            student_id: form.student_id,
+                            school_id: effectiveSchoolId,
+                            class_id: form.class_id || null,
+                            academic_year: form.academic_year,
+                            term: form.term,
+                            remarks: form.remarks,
+                            created_by: profile?.id,
+                            is_published: form.is_published,
+                        })
+                        .select("id")
+                        .single();
+                    if (error) throw error;
+                    cardId = data.id;
+                }
             }
 
             // Insert subjects
