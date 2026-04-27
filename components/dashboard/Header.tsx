@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, Bell, User, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -30,9 +31,25 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProps) {
-    const { role, signOut } = useAuth();
+    const { role, profile, signOut } = useAuth();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [logoutOpen, setLogoutOpen] = useState(false);
+    const [schoolName, setSchoolName] = useState<string | null>(null);
+
+    useEffect(() => {
+        if ((role === "Admin" || role === "Teacher") && profile?.school_id) {
+            supabase
+                .from("schools")
+                .select("school_name")
+                .eq("id", profile.school_id)
+                .single()
+                .then(({ data }) => {
+                    if (data) setSchoolName(data.school_name);
+                });
+        } else {
+            setSchoolName(null);
+        }
+    }, [role, profile?.school_id]);
 
     return (
         <>
@@ -53,8 +70,12 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
                     </button>
 
                     <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 bg-gradient-to-br from-indigo-600 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-xl transition-shadow">S</div>
-                        <span className="font-bold text-xl tracking-tight gradient-text-primary hidden sm:block">SchoolMS</span>
+                        <div className="h-8 w-8 bg-gradient-to-br from-indigo-600 to-cyan-500 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg hover:shadow-xl transition-shadow">
+                            {schoolName ? schoolName.charAt(0).toUpperCase() : "S"}
+                        </div>
+                        <span className="font-bold text-xl tracking-tight gradient-text-primary hidden sm:block">
+                            {schoolName || "SchoolMS"}
+                        </span>
                     </div>
                 </div>
 

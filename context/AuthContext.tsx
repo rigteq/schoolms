@@ -128,9 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const currentUser = newSession?.user ?? null;
 
-            // Update session and user whenever auth state changes
-            setSession(newSession);
-            setUser(currentUser);
             if (event === 'SIGNED_OUT') {
                 setSession(null);
                 setUser(null);
@@ -148,7 +145,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (currentUser?.email) {
                 await fetchProfile(currentUser);
             } else if (!currentUser) {
-                // If no user, ensure we clear profile
                 setProfile(null);
                 setRole(null);
                 setIsLoading(false);
@@ -162,10 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [router]);
 
     const signOut = async () => {
+        // Only call Supabase signOut — the onAuthStateChange SIGNED_OUT
+        // event will clear state and redirect to "/"
         await supabase.auth.signOut();
-        setProfile(null);
-        setRole(null);
-        router.push("/");
     };
 
     return (

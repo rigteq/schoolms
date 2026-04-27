@@ -23,6 +23,7 @@ export default function AdminsPage() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [mounted, setMounted] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
 
     const { admins, totalCount, loading, mutate } = useAdmins({ page, search });
 
@@ -54,7 +55,7 @@ export default function AdminsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Admins</h1>
                     <p className="text-muted-foreground">Manage school administrators.</p>
                 </div>
-                <Dialog>
+                <Dialog open={addOpen} onOpenChange={setAddOpen}>
                     <DialogTrigger asChild>
                         <Button className="shrink-0"><Plus className="mr-2 h-4 w-4" /> Add Admin</Button>
                     </DialogTrigger>
@@ -63,7 +64,7 @@ export default function AdminsPage() {
                             <DialogTitle>Add New Admin</DialogTitle>
                         </DialogHeader>
                         <div className="p-4">
-                            <AddAdminForm onSuccess={() => mutate()} />
+                            <AddAdminForm onSuccess={() => { mutate(); setAddOpen(false); }} />
                         </div>
                     </DialogContent>
                 </Dialog>

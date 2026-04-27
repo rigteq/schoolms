@@ -26,6 +26,7 @@ export default function TeachersPage() {
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [mounted, setMounted] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
 
     const isAdmin = role === "Admin";
     const schoolId = profile?.school_id;
@@ -76,7 +77,7 @@ export default function TeachersPage() {
                     <p className="text-slate-600 mt-2">{isAdmin ? "Manage teachers in your school." : "Manage all teachers across schools."}</p>
                 </div>
                 {(isAdmin || role === "Superadmin") && (
-                    <Dialog>
+                    <Dialog open={addOpen} onOpenChange={setAddOpen}>
                         <DialogTrigger asChild>
                             <Button className="shrink-0 gradient-btn"><Plus className="mr-2 h-4 w-4" /> Add Teacher</Button>
                         </DialogTrigger>
@@ -85,7 +86,7 @@ export default function TeachersPage() {
                                 <DialogTitle className="gradient-text-primary">Onboard New Teacher</DialogTitle>
                             </DialogHeader>
                             <div className="p-4">
-                                <AddProfileForm roleName="Teacher" defaultSchoolId={isAdmin ? schoolId : undefined} onSuccess={() => displayMutate()} />
+                                <AddProfileForm roleName="Teacher" defaultSchoolId={isAdmin ? schoolId : undefined} onSuccess={() => { displayMutate(); setAddOpen(false); }} />
                             </div>
                         </DialogContent>
                     </Dialog>
