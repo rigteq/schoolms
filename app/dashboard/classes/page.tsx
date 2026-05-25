@@ -84,7 +84,7 @@ export default function ClassesPage() {
                         {isTeacher ? "Your assigned classes." : isAdmin ? "Manage classes in your school." : "Manage all classes and academic years."}
                     </p>
                 </div>
-                {(isAdmin || isSuperadmin) && (
+                {(isAdmin || isSuperadmin || isTeacher) && (
                     <>
                         {/* Add Class Dialog */}
                         <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -97,7 +97,7 @@ export default function ClassesPage() {
                                 </DialogHeader>
                                 <div className="p-4">
                                     <AddClassForm
-                                        defaultSchoolId={isAdmin ? schoolId : undefined}
+                                        defaultSchoolId={(isAdmin || isTeacher) ? schoolId : undefined}
                                         onSuccess={() => { displayMutate(); setAddOpen(false); }}
                                     />
                                 </div>
@@ -147,7 +147,7 @@ export default function ClassesPage() {
                                     <TableHead>Class Teacher</TableHead>
                                     <TableHead>Total Students</TableHead>
                                     <TableHead>Created On</TableHead>
-                                    {(isAdmin || isSuperadmin) && <TableHead className="text-right">Actions</TableHead>}
+                                    {(isAdmin || isSuperadmin || isTeacher) && <TableHead className="text-right">Actions</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -176,7 +176,7 @@ export default function ClassesPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{mounted ? formatDate(cls.created_at) : "-"}</TableCell>
-                                            {(isAdmin || isSuperadmin) && (
+                                            {(isAdmin || isSuperadmin || isTeacher) && (
                                                 <TableCell className="text-right">
                                                     <Button
                                                         size="sm"

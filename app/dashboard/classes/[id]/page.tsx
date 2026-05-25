@@ -45,7 +45,7 @@ export default function ClassDetailsPage() {
     const [selectedTeacher, setSelectedTeacher] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
 
-    const canManage = role === "Admin" || role === "Superadmin";
+    const canManage = role === "Admin" || role === "Superadmin" || role === "Teacher";
 
     useEffect(() => {
         if (classId) fetchClassDetails();

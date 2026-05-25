@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -89,12 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Check active session
                 const { data: { session: initialSession } } = await supabase.auth.getSession();
 
-                // Validate session with server (handles the case where user was deleted but token remains)
                 if (initialSession) {
                     const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
 
                     if (userError || !validatedUser) {
-                        console.warn("Session invalid, signing out...", userError);
                         await supabase.auth.signOut();
                         if (mountedRef.current) {
                             setSession(null);
@@ -124,7 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
             if (!mountedRef.current) return;
-            console.log("Auth Event:", event);
 
             const currentUser = newSession?.user ?? null;
 
@@ -157,14 +154,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     }, [router]);
 
-    const signOut = async () => {
-        // Only call Supabase signOut — the onAuthStateChange SIGNED_OUT
-        // event will clear state and redirect to "/"
+    const signOut = useCallback(async () => {
         await supabase.auth.signOut();
-    };
+    }, []);
+
+    const value = useMemo(
+        () => ({ user, session, profile, role, isLoading, signOut }),
+        [user, session, profile, role, isLoading, signOut]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, session, profile, role, isLoading, signOut }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

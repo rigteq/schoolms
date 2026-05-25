@@ -10,6 +10,19 @@ interface UsePaginationOptions {
 }
 
 const ITEMS_PER_PAGE = 50;
+const roleIdCache = new Map<string, string>();
+
+async function getRoleId(roleName: string) {
+    if (roleIdCache.has(roleName)) {
+        return roleIdCache.get(roleName) ?? null;
+    }
+
+    const { data, error } = await supabase.from("roles").select("id").eq("role_name", roleName).single();
+    if (error || !data) return null;
+
+    roleIdCache.set(roleName, data.id);
+    return data.id;
+}
 
 export function useSchools({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`schools`, page, search].join('#');
@@ -46,10 +59,10 @@ export function useAdmins({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePa
     const key = [`admins`, page, search].join('#');
 
     const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Admin").single();
-        if (!roles) return { data: [], count: 0 };
+        const roleId = await getRoleId("Admin");
+        if (!roleId) return { data: [], count: 0 };
 
-        let query = supabase.from("profiles").select(`*, schools(school_name)`, { count: "exact" }).eq("role_id", roles.id).eq("is_deleted", false);
+        let query = supabase.from("profiles").select(`*, schools(school_name)`, { count: "exact" }).eq("role_id", roleId).eq("is_deleted", false);
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -80,12 +93,12 @@ export function useTeachers({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
     const key = [`teachers`, page, search].join('#');
 
     const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
-        if (!roles) return { data: [], count: 0 };
+        const roleId = await getRoleId("Teacher");
+        if (!roleId) return { data: [], count: 0 };
 
         let query = supabase.from("profiles")
             .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
-            .eq("role_id", roles.id).eq("is_deleted", false);
+            .eq("role_id", roleId).eq("is_deleted", false);
         if (search) query = query.ilike("full_name", `%${search}%`);
 
         const from = (page - 1) * itemsPerPage;
@@ -182,14 +195,13 @@ export function useStats() {
     const key = 'stats';
 
     const fetcher = async () => {
-        const [schoolsResult, rolesResult, studentsResult, classesResult] = await Promise.all([
+        const [schoolsResult, studentsResult, classesResult] = await Promise.all([
             supabase.from("schools").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
-            supabase.from("roles").select("id, role_name"),
             supabase.from("students_data").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
             supabase.from("classes").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
         ]);
 
-        const teacherRoleId = rolesResult.data?.find(r => r.role_name === 'Teacher')?.id;
+        const teacherRoleId = await getRoleId("Teacher");
         const teachersResult = await supabase
             .from("profiles")
             .select("*", { count: 'exact', head: true })
@@ -225,8 +237,7 @@ export function useSchoolStats(schoolId: string | undefined) {
     const fetcher = async () => {
         if (!schoolId) return { teachers: 0, students: 0, classes: 0 };
 
-        const { data: roles } = await supabase.from("roles").select("id, role_name");
-        const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
+        const teacherRoleId = await getRoleId("Teacher");
 
         const [teachersResult, studentsResult, classesResult] = await Promise.all([
             supabase.from("profiles")
@@ -265,12 +276,12 @@ export function useAdminTeachers({ page, search, schoolId, itemsPerPage = ITEMS_
     const key = [`admin-teachers`, page, search, schoolId].join('#');
 
     const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
-        if (!roles) return { data: [], count: 0 };
+        const roleId = await getRoleId("Teacher");
+        if (!roleId) return { data: [], count: 0 };
 
         let query = supabase.from("profiles")
             .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
-            .eq("role_id", roles.id)
+            .eq("role_id", roleId)
             .eq("school_id", schoolId)
             .eq("is_deleted", false);
 

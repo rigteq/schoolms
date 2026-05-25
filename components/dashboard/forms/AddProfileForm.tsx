@@ -18,10 +18,19 @@ interface AddProfileFormProps {
     defaultSchoolId?: string;
 }
 
+/** Validate a 12-digit Aadhar number */
+function validateAadhar(val: string): string | null {
+    if (!val) return null; // optional field
+    const cleaned = val.replace(/\s/g, "");
+    if (!/^\d{12}$/.test(cleaned)) return "Aadhar number must be exactly 12 digits.";
+    return null;
+}
+
 export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }: AddProfileFormProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [dobError, setDobError] = useState<string | null>(null);
+    const [aadharError, setAadharError] = useState<string | null>(null);
     const [schools, setSchools] = useState<any[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
     const [showPassword, setShowPassword] = useState(false);
@@ -36,6 +45,14 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         dob: "",
         subject_name: "",
         class_id: "",
+        // Extended student fields
+        form_submitted_date: "",
+        aadhar_number: "",
+        mother_name: "",
+        father_name: "",
+        last_institution: "",
+        last_institution_class: "",
+        last_institution_section: "",
     });
 
     useEffect(() => {
@@ -74,6 +91,15 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         setDobError(ageError);
     };
 
+    const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setFormData({ ...formData, aadhar_number: val });
+        setAadharError(validateAadhar(val));
+    };
+
+    const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+        setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const schoolIdToUse = defaultSchoolId || formData.school_id;
@@ -102,6 +128,12 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
             return;
         }
 
+        if (aadharError) {
+            setError(aadharError);
+            toast.error(aadharError);
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -113,6 +145,13 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 address: formData.current_address,
                 subject_name: roleName === "Teacher" ? formData.subject_name : undefined,
                 class_id: roleName === "Student" ? formData.class_id : undefined,
+                form_submitted_date: roleName === "Student" ? formData.form_submitted_date || undefined : undefined,
+                aadhar_number: roleName === "Student" ? formData.aadhar_number || undefined : undefined,
+                mother_name: roleName === "Student" ? formData.mother_name || undefined : undefined,
+                father_name: roleName === "Student" ? formData.father_name || undefined : undefined,
+                last_institution: roleName === "Student" ? formData.last_institution || undefined : undefined,
+                last_institution_class: roleName === "Student" ? formData.last_institution_class || undefined : undefined,
+                last_institution_section: roleName === "Student" ? formData.last_institution_section || undefined : undefined,
             });
 
             if (!result.success) throw new Error(result.error);
@@ -127,9 +166,17 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 current_address: "",
                 dob: "",
                 subject_name: "",
-                class_id: ""
+                class_id: "",
+                form_submitted_date: "",
+                aadhar_number: "",
+                mother_name: "",
+                father_name: "",
+                last_institution: "",
+                last_institution_class: "",
+                last_institution_section: "",
             });
             setDobError(null);
+            setAadharError(null);
             if (onSuccess) onSuccess();
         } catch (err: any) {
             setError(err.message || `Failed to add ${roleName}`);
@@ -140,88 +187,88 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
                 <div className="text-red-500 text-sm p-2 bg-red-50 rounded border border-red-100">
                     {error}
                 </div>
             )}
 
-            {/* School selector (when not pre-set) */}
-            {!defaultSchoolId && (
-                <div className="space-y-2">
-                    <Label htmlFor="school">School</Label>
-                    <Select
-                        onValueChange={(val) => setFormData({ ...formData, school_id: val, class_id: "" })}
-                        value={formData.school_id}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a school" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                            {schools.map(school => (
-                                <SelectItem key={school.id} value={school.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
-                                    {school.school_name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* School selector (when not pre-set) */}
+                {!defaultSchoolId && (
+                    <div className="space-y-2">
+                        <Label htmlFor="school">School</Label>
+                        <Select
+                            onValueChange={(val) => setFormData({ ...formData, school_id: val, class_id: "" })}
+                            value={formData.school_id}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a school" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                                {schools.map(school => (
+                                    <SelectItem key={school.id} value={school.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
+                                        {school.school_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
-            {/* Class selector for Students */}
-            {roleName === "Student" && (
-                <div className="space-y-2">
-                    <Label htmlFor="class">Class <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
-                    <Select
-                        onValueChange={(val) => setFormData({ ...formData, class_id: val === "none" ? "" : val })}
-                        value={formData.class_id || "none"}
-                        disabled={!formData.school_id && !defaultSchoolId}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder={(!formData.school_id && !defaultSchoolId) ? "Select a school first" : "Select a class"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                            <SelectItem value="none" className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100 text-slate-500">
-                                — No Class —
-                            </SelectItem>
-                            {classes.map(cls => (
-                                <SelectItem key={cls.id} value={cls.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
-                                    {cls.class_name}
+                {/* Class selector for Students */}
+                {roleName === "Student" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="class">Class <span className="text-slate-400 text-xs font-normal">(Optional)</span></Label>
+                        <Select
+                            onValueChange={(val) => setFormData({ ...formData, class_id: val === "none" ? "" : val })}
+                            value={formData.class_id || "none"}
+                            disabled={!formData.school_id && !defaultSchoolId}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder={(!formData.school_id && !defaultSchoolId) ? "Select a school first" : "Select a class"} />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white">
+                                <SelectItem value="none" className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100 text-slate-500">
+                                    — No Class —
                                 </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            )}
+                                {classes.map(cls => (
+                                    <SelectItem key={cls.id} value={cls.id} className="cursor-pointer hover:bg-gray-100 focus:bg-gray-100">
+                                        {cls.class_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
 
-            {/* Subject for Teachers */}
-            {roleName === "Teacher" && (
+                {/* Subject for Teachers */}
+                {roleName === "Teacher" && (
+                    <div className="space-y-2">
+                        <Label htmlFor="subject">Subject Specialization</Label>
+                        <Input
+                            id="subject"
+                            value={formData.subject_name}
+                            onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
+                            placeholder="e.g. Mathematics"
+                        />
+                    </div>
+                )}
+
+                {/* Full Name */}
                 <div className="space-y-2">
-                    <Label htmlFor="subject">Subject Specialization</Label>
+                    <Label htmlFor="full_name">Full Name</Label>
                     <Input
-                        id="subject"
-                        value={formData.subject_name}
-                        onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })}
-                        placeholder="e.g. Mathematics"
+                        id="full_name"
+                        value={formData.full_name}
+                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        required
+                        placeholder="John Doe"
                     />
                 </div>
-            )}
 
-            {/* Full Name */}
-            <div className="space-y-2">
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    required
-                    placeholder="John Doe"
-                />
-            </div>
-
-            {/* Email & Password row */}
-            <div className={`grid ${roleName === "Student" ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+                {/* Email */}
                 <div className="space-y-2">
                     <Label htmlFor="email">
                         Email {roleName === "Student" && <span className="text-slate-400 text-xs font-normal">(Optional)</span>}
@@ -235,6 +282,8 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         placeholder="john@example.com"
                     />
                 </div>
+
+                {/* Password */}
                 {roleName !== "Student" && (
                     <div className="space-y-2">
                         <Label htmlFor="password">Password</Label>
@@ -259,19 +308,21 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                         </div>
                     </div>
                 )}
-            </div>
 
-            {/* Phone & DOB row */}
-            <div className="grid grid-cols-2 gap-4">
+                {/* Phone */}
                 <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">
+                        {roleName === "Student" ? "Guardian Mobile Number" : "Phone"}
+                    </Label>
                     <Input
                         id="phone"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+1 234..."
+                        placeholder="+91 98765 43210"
                     />
                 </div>
+
+                {/* DOB */}
                 <div className="space-y-2">
                     <Label htmlFor="dob">Date of Birth</Label>
                     <Input
@@ -289,7 +340,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                 </div>
             </div>
 
-            {/* Address — textarea for comfortable multi-line entry */}
+            {/* Address */}
             <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
                 <Textarea
@@ -297,12 +348,112 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
                     value={formData.current_address}
                     onChange={(e) => setFormData({ ...formData, current_address: e.target.value })}
                     placeholder="Full address including city, state and pin code"
-                    rows={3}
+                    rows={2}
                 />
             </div>
 
-            <div className="flex justify-end pt-4">
-                <Button type="submit" disabled={loading}>
+            {/* ── Extended Student Fields ── */}
+            {roleName === "Student" && (
+                <>
+                    <div className="border-t border-slate-100 pt-4">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Additional Details</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Date of Submitted Form */}
+                        <div className="space-y-2">
+                            <Label htmlFor="form_submitted_date">
+                                Date of Submitted Form <span className="text-slate-400 text-xs font-normal">(Optional)</span>
+                            </Label>
+                            <Input
+                                id="form_submitted_date"
+                                type="date"
+                                value={formData.form_submitted_date}
+                                onChange={set("form_submitted_date")}
+                            />
+                        </div>
+
+                        {/* Aadhar Number */}
+                        <div className="space-y-2">
+                            <Label htmlFor="aadhar_number">
+                                Aadhar Number <span className="text-slate-400 text-xs font-normal">(Optional — 12 digits)</span>
+                            </Label>
+                            <Input
+                                id="aadhar_number"
+                                value={formData.aadhar_number}
+                                onChange={handleAadharChange}
+                                placeholder="1234 5678 9012"
+                                maxLength={14}
+                            />
+                            {aadharError && <div className="text-red-500 text-sm">{aadharError}</div>}
+                        </div>
+
+                        {/* Mother's Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="mother_name">Mother&apos;s Name</Label>
+                            <Input
+                                id="mother_name"
+                                value={formData.mother_name}
+                                onChange={set("mother_name")}
+                                placeholder="Mother's full name"
+                            />
+                        </div>
+
+                        {/* Father's Name */}
+                        <div className="space-y-2">
+                            <Label htmlFor="father_name">Father&apos;s Name</Label>
+                            <Input
+                                id="father_name"
+                                value={formData.father_name}
+                                onChange={set("father_name")}
+                                placeholder="Father's full name"
+                            />
+                        </div>
+
+                        {/* Last Institution */}
+                        <div className="space-y-2">
+                            <Label htmlFor="last_institution">
+                                Last Institution Attended <span className="text-slate-400 text-xs font-normal">(Optional)</span>
+                            </Label>
+                            <Input
+                                id="last_institution"
+                                value={formData.last_institution}
+                                onChange={set("last_institution")}
+                                placeholder="Name of previous school"
+                            />
+                        </div>
+
+                        {/* Class (last inst) */}
+                        <div className="space-y-2">
+                            <Label htmlFor="last_institution_class">
+                                Class (at last institution) <span className="text-slate-400 text-xs font-normal">(Optional)</span>
+                            </Label>
+                            <Input
+                                id="last_institution_class"
+                                value={formData.last_institution_class}
+                                onChange={set("last_institution_class")}
+                                placeholder="e.g. Grade 5"
+                            />
+                        </div>
+
+                        {/* Section (last inst) */}
+                        <div className="space-y-2">
+                            <Label htmlFor="last_institution_section">
+                                Section <span className="text-slate-400 text-xs font-normal">(Optional)</span>
+                            </Label>
+                            <Input
+                                id="last_institution_section"
+                                value={formData.last_institution_section}
+                                onChange={set("last_institution_section")}
+                                placeholder="e.g. A"
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
+
+            <div className="flex justify-end pt-4 mt-6 border-t border-slate-100">
+                <Button type="submit" disabled={loading} className="w-full md:w-auto">
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Add {roleName}
                 </Button>

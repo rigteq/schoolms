@@ -123,6 +123,20 @@
   --animate-float: float 3s ease-in-out infinite;
 }
 
+.fade-slide {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fade-in 0.45s ease-out forwards, slide-up 0.45s ease-out forwards;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
 /* Modern Glass Morphism Effect */
 .glass {
   background: rgba(255, 255, 255, 0.8) !important;

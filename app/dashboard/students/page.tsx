@@ -29,6 +29,7 @@ export default function StudentsPage() {
     const [addOpen, setAddOpen] = useState(false);
 
     const isAdmin = role === "Admin";
+    const isTeacher = role === "Teacher";
     const schoolId = profile?.school_id;
 
     const { students, totalCount, loading, mutate } = useStudents({ page, search });
@@ -38,11 +39,12 @@ export default function StudentsPage() {
         schoolId: schoolId || ""
     });
 
-    // Use admin students if user is admin, otherwise use all students
-    const displayStudents = isAdmin ? adminStudents : students;
-    const displayTotal = isAdmin ? adminTotalCount : totalCount;
-    const displayLoading = isAdmin ? adminLoading : loading;
-    const displayMutate = isAdmin ? adminMutate : mutate;
+    // Admins and Teachers are school-scoped; Superadmin sees all
+    const isSchoolScoped = isAdmin || isTeacher;
+    const displayStudents = isSchoolScoped ? adminStudents : students;
+    const displayTotal = isSchoolScoped ? adminTotalCount : totalCount;
+    const displayLoading = isSchoolScoped ? adminLoading : loading;
+    const displayMutate = isSchoolScoped ? adminMutate : mutate;
 
     useEffect(() => setMounted(true), []);
 
@@ -76,17 +78,17 @@ export default function StudentsPage() {
                     <h1 className="text-4xl font-bold gradient-text-primary tracking-tight">Students</h1>
                     <p className="text-slate-600 mt-2">{isAdmin ? "Manage students in your school." : "Manage all students enrolled in the system."}</p>
                 </div>
-                {(isAdmin || role === "Superadmin") && (
+                {(isAdmin || isTeacher || role === "Superadmin") && (
                     <Dialog open={addOpen} onOpenChange={setAddOpen}>
                         <DialogTrigger asChild>
                             <Button className="shrink-0 gradient-btn"><Plus className="mr-2 h-4 w-4" /> Add Student</Button>
                         </DialogTrigger>
-                        <DialogContent className="max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="gradient-text-primary">Enroll New Student</DialogTitle>
                             </DialogHeader>
                             <div className="p-4">
-                                <AddProfileForm roleName="Student" defaultSchoolId={isAdmin ? schoolId : undefined} onSuccess={() => { displayMutate(); setAddOpen(false); }} />
+                                <AddProfileForm roleName="Student" defaultSchoolId={isSchoolScoped ? schoolId : undefined} onSuccess={() => { displayMutate(); setAddOpen(false); }} />
                             </div>
                         </DialogContent>
                     </Dialog>

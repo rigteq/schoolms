@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -59,22 +58,12 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-6 max-w-2xl">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-5xl font-bold leading-tight text-slate-900"
-            >
+            <h2 className="text-5xl font-bold leading-tight text-slate-900 fade-slide delay-200">
               Manage your institution with precision and elegance.
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="text-lg text-slate-700"
-            >
+            </h2>
+            <p className="text-lg text-slate-700 fade-slide delay-400">
               The most advanced school management portal designed for efficiency, clarity, and growth.
-            </motion.p>
+            </p>
           </div>
 
           <div className="flex gap-8">

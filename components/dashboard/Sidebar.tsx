@@ -48,6 +48,7 @@ export function Sidebar({ isOpen, isCollapsed, onClose }: SidebarProps) {
         { name: "Teachers", href: "/dashboard/teachers", icon: GraduationCap, roles: ["Superadmin", "Admin"] },
         { name: "Students", href: "/dashboard/students", icon: Users, roles: ["Superadmin", "Admin", "Teacher"] },
         { name: "Report Cards", href: "/dashboard/report-cards", icon: FileText, roles: ["Superadmin", "Admin", "Teacher"] },
+        { name: "Transfer Certificates", href: "/dashboard/tc", icon: FileText, roles: ["Superadmin", "Admin"] },
         {
             name: "Leaves",
             href: "/dashboard/leaves",

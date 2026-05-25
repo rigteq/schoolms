@@ -13,6 +13,14 @@ interface CreateUserParams {
     dob?: string;
     class_id?: string;
     subject_name?: string;
+    // Extended student fields
+    form_submitted_date?: string;
+    aadhar_number?: string;
+    mother_name?: string;
+    father_name?: string;
+    last_institution?: string;
+    last_institution_class?: string;
+    last_institution_section?: string;
 }
 
 export async function createUserWithRole(params: CreateUserParams) {
@@ -28,19 +36,37 @@ export async function createUserWithRole(params: CreateUserParams) {
             dob,
             class_id,
             subject_name,
+            form_submitted_date,
+            aadhar_number,
+            mother_name,
+            father_name,
+            last_institution,
+            last_institution_class,
+            last_institution_section,
         } = params;
 
-        // Special handling for Student role (no login/profiles)
+        // Special handling for Student role (no auth login / profiles table)
         if (role_name === "Student") {
-            const { data: studentData, error: studentError } = await supabaseAdmin.from("students_data").insert({
-                school_id,
-                class_id: class_id || null,
-                full_name,
-                email,
-                phone,
-                current_address: address,
-                dob: dob || null,
-            }).select("id").single();
+            const { data: studentData, error: studentError } = await supabaseAdmin
+                .from("students_data")
+                .insert({
+                    school_id,
+                    class_id: class_id || null,
+                    full_name,
+                    email: email || null,
+                    phone: phone || null,
+                    current_address: address || null,
+                    dob: dob || null,
+                    form_submitted_date: form_submitted_date || null,
+                    aadhar_number: aadhar_number || null,
+                    mother_name: mother_name || null,
+                    father_name: father_name || null,
+                    last_institution: last_institution || null,
+                    last_institution_class: last_institution_class || null,
+                    last_institution_section: last_institution_section || null,
+                })
+                .select("id")
+                .single();
 
             if (studentError) throw new Error(`Student creation failed: ${studentError.message}`);
             return { success: true, user_id: studentData.id };
@@ -76,8 +102,8 @@ export async function createUserWithRole(params: CreateUserParams) {
             school_id,
             full_name,
             email,
-            phone,
-            current_address: address,
+            phone: phone || null,
+            current_address: address || null,
             dob: dob || null,
         });
 

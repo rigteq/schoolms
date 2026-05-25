@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School, FileText, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
     AlertDialog,
@@ -18,10 +18,13 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import EditProfileDialog from "@/components/dashboard/forms/EditProfileDialog";
+import { useAuth } from "@/context/AuthContext";
 
 export default function StudentDetailPagePage() {
     const { id } = useParams();
     const router = useRouter();
+    const { role } = useAuth();
+    const canEdit = role === "Superadmin" || role === "Admin" || role === "Teacher";
     const [student, setStudent] = useState<any>(null);
     const [enrolledClass, setEnrolledClass] = useState<any>(null);
     const [teachers, setTeachers] = useState<any[]>([]);
@@ -120,15 +123,19 @@ export default function StudentDetailPagePage() {
                             </div>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} isStudent={true} />
-                            <Button
-                                variant="destructive"
-                                onClick={() => setDeleteOpen(true)}
-                                disabled={deleting}
-                            >
-                                {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                                Delete
-                            </Button>
+                            {canEdit && (
+                                <EditProfileDialog profile={student} onSuccess={fetchStudentDetails} isStudent={true} />
+                            )}
+                            {canEdit && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => setDeleteOpen(true)}
+                                    disabled={deleting}
+                                >
+                                    {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                    Delete
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </CardContent>
@@ -154,6 +161,57 @@ export default function StudentDetailPagePage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Extended Student Info */}
+            {(student.father_name || student.mother_name || student.aadhar_number || student.last_institution) && (
+                <Card className="border-indigo-100">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                            <User className="h-4 w-4 text-indigo-500" /> Student Details
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                            {student.father_name && (
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Father's Name</p>
+                                    <p className="text-slate-800">{student.father_name}</p>
+                                </div>
+                            )}
+                            {student.mother_name && (
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Mother's Name</p>
+                                    <p className="text-slate-800">{student.mother_name}</p>
+                                </div>
+                            )}
+                            {student.aadhar_number && (
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Aadhar Number</p>
+                                    <p className="text-slate-800 font-mono">{student.aadhar_number}</p>
+                                </div>
+                            )}
+                            {student.form_submitted_date && (
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Form Submitted Date</p>
+                                    <p className="text-slate-800">{new Date(student.form_submitted_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                                </div>
+                            )}
+                            {student.last_institution && (
+                                <div className="col-span-2">
+                                    <p className="text-xs text-slate-500 font-medium">Last Institution Attended</p>
+                                    <p className="text-slate-800">{student.last_institution}
+                                        {(student.last_institution_class || student.last_institution_section) && (
+                                            <span className="text-slate-500 ml-1">
+                                                — Class: {student.last_institution_class || ""}{student.last_institution_section ? ` / Sec: ${student.last_institution_section}` : ""}
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4">
