@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Menu, Bell, User, Settings as SettingsIcon, PanelLeft, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -37,12 +38,14 @@ export function Header({ onMenuClick, onToggleSidebar, isCollapsed }: HeaderProp
 
     useEffect(() => {
         if ((role === "Admin" || role === "Teacher") && profile?.school_id) {
-            fetch(`/api/schools/${profile.school_id}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data?.school?.school_name) setSchoolName(data.school.school_name);
-                })
-                .catch(() => {});
+            supabase
+                .from("schools")
+                .select("school_name")
+                .eq("id", profile.school_id)
+                .single()
+                .then(({ data }) => {
+                    if (data) setSchoolName(data.school_name);
+                });
         } else {
             setSchoolName(null);
         }

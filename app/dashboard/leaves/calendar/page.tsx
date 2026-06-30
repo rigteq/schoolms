@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Loader2 } from "lucide-react";
@@ -25,13 +26,14 @@ export default function LeaveCalendarPage() {
             if (!profile?.school_id) return;
 
             try {
-                const params = new URLSearchParams({
-                    type: 'global',
-                    school_id: profile.school_id,
-                });
-                const res = await fetch(`/api/leaves?${params}`);
-                if (!res.ok) throw new Error('Failed to fetch');
-                const data = await res.json();
+                const { data, error } = await supabase
+                    .from("leave_details")
+                    .select("*")
+                    .eq("leave_type", "global")
+                    .eq("school_id", profile.school_id)
+                    .order("leave_date_from", { ascending: true });
+
+                if (error) throw error;
                 setHolidays(data || []);
             } catch (error) {
                 console.error("Error fetching holidays:", error);

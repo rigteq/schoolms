@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,11 +38,8 @@ export default function AddAdminForm({ onSuccess }: { onSuccess?: () => void }) 
 
     useEffect(() => {
         async function fetchSchools() {
-            const res = await fetch('/api/schools?limit=200');
-            if (res.ok) {
-                const data = await res.json();
-                setSchools(data.data || []);
-            }
+            const { data } = await supabase.from("schools").select("id, school_name").eq("is_deleted", false).order("school_name");
+            if (data) setSchools(data);
         }
         fetchSchools();
     }, []);

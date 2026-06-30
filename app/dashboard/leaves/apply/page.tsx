@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import { toast } from "sonner"; // Assuming sonner is installed and configured
 import { Button } from "@/components/ui/button";
@@ -90,15 +91,9 @@ export default function ApplyLeavePage() {
                 status: status,
             };
 
-            const res = await fetch('/api/leaves', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to submit');
-            }
+            const { error } = await supabase.from("leave_details").insert(payload);
+
+            if (error) throw error;
 
             toast.success("Leave application submitted successfully!");
             router.push("/dashboard/leaves/list");

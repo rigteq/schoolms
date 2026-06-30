@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,11 +31,16 @@ export default function EditClassForm({ cls, onSuccess }: EditClassFormProps) {
 
     useEffect(() => {
         async function fetchTeachers() {
-            const res = await fetch(`/api/profiles?role=Teacher&school_id=${cls.school_id}&limit=500`);
-            if (res.ok) {
-                const data = await res.json();
-                setTeachers(data.data || []);
-            }
+            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
+            if (!roleData) return;
+            const { data } = await supabase
+                .from("profiles")
+                .select("id, full_name")
+                .eq("school_id", cls.school_id)
+                .eq("role_id", roleData.id)
+                .eq("is_deleted", false)
+                .order("full_name");
+            if (data) setTeachers(data);
         }
         fetchTeachers();
     }, [cls.school_id]);
@@ -43,16 +49,17 @@ export default function EditClassForm({ cls, onSuccess }: EditClassFormProps) {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch(`/api/classes/${cls.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const { error } = await supabase
+                .from("classes")
+                .update({
                     class_name: formData.class_name,
                     academic_year: formData.academic_year,
                     class_teacher_id: formData.class_teacher_id || null,
-                }),
-            });
-            if (!res.ok) throw new Error('Update failed');
+                    modified_at: new Date().toISOString(),
+                })
+                .eq("id", cls.id);
+
+            if (error) throw error;
             toast.success("Class updated successfully!");
             if (onSuccess) onSuccess();
         } catch (err: any) {

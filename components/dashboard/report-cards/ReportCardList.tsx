@@ -17,6 +17,7 @@ import {
     TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import { Loader2, Search, Plus, ChevronLeft, ChevronRight, FileText, Eye, Download } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { generateReportCardPdf } from "@/lib/utils/reportCardPdf";
 import { toast } from "sonner";
 
@@ -62,10 +63,19 @@ export default function ReportCardList({ defaultSchoolId }: ReportCardListProps)
         e.stopPropagation();
         setDownloadingId(cardId);
         try {
-            const res = await fetch(`/api/report-cards/${cardId}`);
-            if (!res.ok) throw new Error("Failed to fetch report card details");
-            const data = await res.json();
-            
+            const { data, error } = await supabase
+                .from("report_cards")
+                .select(`
+                    *,
+                    students_data(full_name, email, phone, dob, parent_name, parent_phone),
+                    classes(class_name, academic_year),
+                    schools(school_name, email, phone, address),
+                    report_card_subjects(*)
+                `)
+                .eq("id", cardId)
+                .single();
+
+            if (error) throw error;
             await generateReportCardPdf(data as any);
             toast.success("PDF downloaded!");
         } catch (err: any) {

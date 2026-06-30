@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,12 +54,25 @@ export default function ClassDetailsPage() {
     const fetchClassDetails = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/classes/${classId}`);
-            if (!res.ok) throw new Error('Not found');
-            const data = await res.json();
-            setClassData(data.classData);
-            setStudents(data.students || []);
-            setTeachers(data.teachers || []);
+            const { data: cls, error: clsError } = await supabase
+                .from("classes")
+                .select("*, schools(school_name), profiles:class_teacher_id(id, full_name)")
+                .eq("id", classId)
+                .single();
+
+            if (clsError) throw clsError;
+            setClassData(cls);
+
+            const [studRes, teachRes] = await Promise.all([
+                supabase.from("students_data").select("id, full_name, email").eq("class_id", classId).eq("is_deleted", false),
+                supabase.from("teachers_data").select("*, profiles:id(id, full_name, email)").contains("class_ids", [classId]),
+            ]);
+
+            if (studRes.error) throw studRes.error;
+            if (teachRes.error) throw teachRes.error;
+
+            setStudents(studRes.data || []);
+            setTeachers(teachRes.data || []);
         } catch (error: any) {
             toast.error("Failed to load class details");
         } finally {
@@ -71,21 +85,34 @@ export default function ClassDetailsPage() {
         if (!targetSchoolId) return;
 
         if (type === "student") {
-            const res = await fetch(`/api/students?school_id=${targetSchoolId}&limit=500`);
-            const data = await res.json();
-            setAvailableStudents(data.data || []);
+            const { data: studs } = await supabase
+                .from("students_data")
+                .select("id, full_name")
+                .eq("school_id", targetSchoolId)
+                .eq("is_deleted", false);
+            setAvailableStudents(studs || []);
         } else {
-            const res = await fetch(`/api/profiles?role=Teacher&school_id=${targetSchoolId}&limit=500`);
-            const data = await res.json();
-            setAvailableTeachers(data.data || []);
+            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
+            if (roleData) {
+                const { data: teachs } = await supabase
+                    .from("profiles")
+                    .select("id, full_name")
+                    .eq("school_id", targetSchoolId)
+                    .eq("role_id", roleData.id)
+                    .eq("is_deleted", false);
+                setAvailableTeachers(teachs || []);
+            }
         }
     };
 
     const handleDeleteClass = async () => {
         setDeleteLoading(true);
         try {
-            const res = await fetch(`/api/classes/${classId}`, { method: 'DELETE' });
-            if (!res.ok) throw new Error('Failed to delete');
+            const { error } = await supabase
+                .from("classes")
+                .update({ is_deleted: true, modified_at: new Date().toISOString() })
+                .eq("id", classId);
+            if (error) throw error;
             toast.success("Class deleted successfully.");
             router.push("/dashboard/classes");
         } catch (err: any) {
@@ -99,12 +126,8 @@ export default function ClassDetailsPage() {
         if (!selectedStudent) return;
         setActionLoading(true);
         try {
-            const res = await fetch(`/api/students/${selectedStudent}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ class_id: classId }),
-            });
-            if (!res.ok) throw new Error('Failed to add student');
+            const { error } = await supabase.from("students_data").update({ class_id: classId }).eq("id", selectedStudent);
+            if (error) throw error;
             toast.success("Student added to class");
             setIsAddStudentOpen(false);
             setSelectedStudent("");
@@ -120,29 +143,32 @@ export default function ClassDetailsPage() {
         if (!selectedTeacher) return;
         setActionLoading(true);
         try {
-            // Fetch current class_ids for this teacher
-            const tdRes = await fetch(`/api/teachers-data/${selectedTeacher}`);
-            const current = tdRes.ok ? await tdRes.json() : null;
+            const { data: current, error: fetchError } = await supabase
+                .from("teachers_data").select("class_ids").eq("id", selectedTeacher).maybeSingle();
+            if (fetchError) throw fetchError;
 
-            const existingIds: string[] = current?.class_ids || [];
-            if (existingIds.includes(classId)) {
-                toast.error("Teacher is already assigned to this class");
-                return;
+            if (!current) {
+                const { error: insertError } = await supabase.from("teachers_data").insert({ id: selectedTeacher, class_ids: [classId] });
+                if (insertError) throw insertError;
+            } else {
+                const existingIds = current.class_ids || [];
+                if (existingIds.includes(classId)) {
+                    toast.error("Teacher is already assigned to this class");
+                    return;
+                }
+                const { error: updateError } = await supabase
+                    .from("teachers_data").update({ class_ids: [...existingIds, classId] }).eq("id", selectedTeacher);
+                if (updateError) throw updateError;
             }
 
-            await fetch(`/api/teachers-data/${selectedTeacher}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ class_ids: [...existingIds, classId] }),
-            });
-
-            // If no class teacher yet, set this one
+            // ── Sync class_teacher_id on the classes table ──────────────────
+            // If no class teacher is designated yet, set this teacher as the class teacher
             if (!classData.profiles?.id) {
-                await fetch(`/api/classes/${classId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ class_teacher_id: selectedTeacher }),
-                });
+                const { error: clsError } = await supabase
+                    .from("classes")
+                    .update({ class_teacher_id: selectedTeacher })
+                    .eq("id", classId);
+                if (clsError) throw clsError;
             }
 
             toast.success("Teacher assigned to class");
@@ -158,11 +184,8 @@ export default function ClassDetailsPage() {
 
     const handleRemoveStudent = async (studentId: string) => {
         try {
-            await fetch(`/api/students/${studentId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ class_id: null }),
-            });
+            const { error } = await supabase.from("students_data").update({ class_id: null }).eq("id", studentId);
+            if (error) throw error;
             toast.success("Student removed from class");
             setRemoveStudentTarget(null);
             fetchClassDetails();
@@ -173,23 +196,19 @@ export default function ClassDetailsPage() {
 
     const handleRemoveTeacher = async (teacherId: string) => {
         try {
-            const tdRes = await fetch(`/api/teachers-data/${teacherId}`);
-            const current = tdRes.ok ? await tdRes.json() : null;
-            const newIds = (current?.class_ids || []).filter((cid: string) => cid !== classId);
+            const { data: current } = await supabase.from("teachers_data").select("class_ids").eq("id", teacherId).single();
+            const newIds = (current?.class_ids || []).filter((id: string) => id !== classId);
+            const { error } = await supabase.from("teachers_data").update({ class_ids: newIds }).eq("id", teacherId);
+            if (error) throw error;
 
-            await fetch(`/api/teachers-data/${teacherId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ class_ids: newIds }),
-            });
-
-            // If this teacher was the class teacher, clear that
+            // ── Sync class_teacher_id on the classes table ──────────────────
+            // If this teacher was the designated class teacher, clear that field
             if (classData.profiles?.id === teacherId) {
-                await fetch(`/api/classes/${classId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ class_teacher_id: null }),
-                });
+                const { error: clsError } = await supabase
+                    .from("classes")
+                    .update({ class_teacher_id: null })
+                    .eq("id", classId);
+                if (clsError) throw clsError;
             }
 
             toast.success("Teacher removed from class");

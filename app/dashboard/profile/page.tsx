@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,12 +37,12 @@ export default function ProfilePage() {
 
         setSaving(true);
         try {
-            const res = await fetch(`/api/profiles/${user.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-            if (!res.ok) throw new Error('Update failed');
+            const { error } = await supabase
+                .from("profiles")
+                .update(formData)
+                .eq("id", user.id);
+
+            if (error) throw error;
             toast.success("Profile updated successfully");
         } catch (err: any) {
             console.error(err);
@@ -52,7 +53,17 @@ export default function ProfilePage() {
     };
 
     const handlePasswordReset = async () => {
-        toast.info("To change your password, please contact your system administrator.");
+        if (!user?.email) return;
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                redirectTo: `${window.location.origin}/auth/update-password`,
+            });
+            if (error) throw error;
+            toast.success("Password reset email sent!");
+        } catch (err: any) {
+            toast.error(err.message);
+        }
     };
 
     if (isLoading) {

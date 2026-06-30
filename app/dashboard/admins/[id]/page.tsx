@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School, ShieldCheck } from "lucide-react";
@@ -32,9 +33,13 @@ export default function AdminDetailPage() {
         if (!id) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/profiles/${id}`);
-            if (!res.ok) throw new Error('Not found');
-            const data = await res.json();
+            const { data, error } = await supabase
+                .from("profiles")
+                .select(`*, schools (school_name)`)
+                .eq("id", id)
+                .single();
+
+            if (error) throw error;
             setAdmin(data);
         } catch {
             // silently fail — user sees empty state
@@ -49,11 +54,7 @@ export default function AdminDetailPage() {
 
     const handleDelete = async () => {
         setDeleting(true);
-        await fetch(`/api/profiles/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_deleted: true }),
-        });
+        await supabase.from("profiles").update({ is_deleted: true }).eq("id", id);
         setDeleting(false);
         router.push("/dashboard/admins");
     };
