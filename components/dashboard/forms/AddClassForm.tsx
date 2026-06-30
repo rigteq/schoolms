@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,8 +27,11 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
     useEffect(() => {
         if (!defaultSchoolId) {
             async function fetchSchools() {
-                const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
-                if (data) setSchools(data);
+                const res = await fetch('/api/schools?limit=200');
+                if (res.ok) {
+                    const data = await res.json();
+                    setSchools(data.data || []);
+                }
             }
             fetchSchools();
         }
@@ -48,11 +50,15 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
         setError(null);
 
         try {
-            const { error: insertError } = await supabase
-                .from("classes")
-                .insert([{ ...formData, school_id: schoolIdToUse }]);
-
-            if (insertError) throw insertError;
+            const res = await fetch('/api/classes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...formData, school_id: schoolIdToUse }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to create class');
+            }
 
             toast.success("Class created successfully!");
             setFormData({ school_id: defaultSchoolId || "", class_name: "", academic_year: new Date().getFullYear() + "-" + (new Date().getFullYear() + 1) });

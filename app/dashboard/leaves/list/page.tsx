@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
 import {
     Table,
     TableBody,
@@ -39,23 +38,16 @@ export default function LeaveApplicationList() {
         try {
             if (!profile?.school_id) return;
 
-            let query = supabase
-                .from("leave_details")
-                .select("*, profiles(full_name)")
-                .neq("leave_type", "global") // Exclude global holidays
-                .order("created_time", { ascending: false });
+            const params = new URLSearchParams({
+                exclude_type: 'global',
+                role: role || '',
+                school_id: profile.school_id,
+                profile_id: user?.id || '',
+            });
 
-            if (role === "Admin" || role === "Superadmin") {
-                // Admin sees all in school
-                query = query.eq("school_id", profile.school_id);
-            } else {
-                // Teachers/Students see only their own
-                query = query.eq("profile_id", user?.id);
-            }
-
-            const { data, error } = await query;
-
-            if (error) throw error;
+            const res = await fetch(`/api/leaves?${params}`);
+            if (!res.ok) throw new Error('Failed to fetch');
+            const data = await res.json();
             setLeaves(data || []);
         } catch (error: any) {
             console.error("Error fetching leaves:", error);
@@ -71,13 +63,12 @@ export default function LeaveApplicationList() {
 
     const handleStatusUpdate = async (id: string, newStatus: "approved" | "rejected") => {
         try {
-            const { error } = await supabase
-                .from("leave_details")
-                .update({ status: newStatus, edited_time: new Date().toISOString() })
-                .eq("id", id);
-
-            if (error) throw error;
-
+            const res = await fetch(`/api/leaves/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            if (!res.ok) throw new Error('Failed to update');
             toast.success(`Leave ${newStatus} successfully.`);
             // Optimistic update
             setLeaves((prev) =>

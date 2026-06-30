@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,12 +32,12 @@ export default function EditSchoolForm({ school, onSuccess }: EditSchoolFormProp
         e.preventDefault();
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from("schools")
-                .update({ ...formData, modified_at: new Date().toISOString() })
-                .eq("id", school.id);
-
-            if (error) throw error;
+            const res = await fetch(`/api/schools/${school.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (!res.ok) throw new Error('Update failed');
 
             toast.success("School updated successfully!");
             if (onSuccess) onSuccess();

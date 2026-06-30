@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from 'swr';
-import { supabase } from '@/lib/supabase';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -71,37 +70,18 @@ export function useReportCards({
     term,
     itemsPerPage = ITEMS_PER_PAGE,
 }: UseReportCardsOptions) {
-    const key = ['report-cards', page, search, classId, academicYear, term].join('#');
+    const params = new URLSearchParams({ page: String(page), search, limit: String(itemsPerPage) });
+    if (classId) params.set('class_id', classId);
+    if (academicYear) params.set('academic_year', academicYear);
+    if (term) params.set('term', term);
 
-    const fetcher = async () => {
-        let query = supabase
-            .from('report_cards')
-            .select(
-                `*, 
-                students_data(full_name, email),
-                classes(class_name),
-                schools(school_name)`,
-                { count: 'exact' }
-            )
-            .eq('is_deleted', false);
+    const key = `/api/report-cards?${params}`;
 
-        if (search) query = query.ilike('students_data.full_name', `%${search}%`);
-        if (classId) query = query.eq('class_id', classId);
-        if (academicYear) query = query.eq('academic_year', academicYear);
-        if (term) query = query.eq('term', term);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query
-            .range(from, to)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return { data, count };
-    };
-
-    const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
+    const { data, error, isLoading, mutate } = useSWR(key, async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+    }, {
         keepPreviousData: true,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
@@ -118,27 +98,13 @@ export function useReportCards({
 }
 
 export function useReportCard(id: string | undefined) {
-    const key = id ? `report-card-${id}` : null;
+    const key = id ? `/api/report-cards/${id}` : null;
 
-    const fetcher = async () => {
-        if (!id) return null;
-        const { data, error } = await supabase
-            .from('report_cards')
-            .select(
-                `*, 
-                students_data(full_name, email, phone, dob, parent_name, parent_phone),
-                classes(class_name, academic_year),
-                schools(school_name, email, phone, address),
-                report_card_subjects(*)`
-            )
-            .eq('id', id)
-            .single();
-
-        if (error) throw error;
-        return data as ReportCard;
-    };
-
-    const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
+    const { data, error, isLoading, mutate } = useSWR(key, async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+    }, {
         revalidateOnFocus: false,
     });
 
@@ -151,47 +117,36 @@ export function useReportCard(id: string | undefined) {
 }
 
 export function useStudentsForReportCard(schoolId: string | undefined) {
-    const key = schoolId ? `students-for-rc-${schoolId}` : null;
+    const key = schoolId ? `/api/students?school_id=${schoolId}&limit=500` : null;
 
-    const fetcher = async () => {
-        if (!schoolId) return [];
-        const { data, error } = await supabase
-            .from('students_data')
-            .select('id, full_name, class_id, classes(class_name)')
-            .eq('school_id', schoolId)
-            .eq('is_deleted', false)
-            .order('full_name');
-
-        if (error) throw error;
-        return data || [];
-    };
-
-    const { data, isLoading } = useSWR(key, fetcher, {
+    const { data, isLoading } = useSWR(key, async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+    }, {
         revalidateOnFocus: false,
     });
 
-    return { students: data || [], loading: isLoading };
+    const students = (data?.data || []).map((s: any) => ({
+        id: s.id,
+        full_name: s.full_name,
+        class_id: s.class_id,
+        classes: s.classes,
+    }));
+
+    return { students, loading: isLoading };
 }
 
 export function useClassesForReportCard(schoolId: string | undefined) {
-    const key = schoolId ? `classes-for-rc-${schoolId}` : null;
+    const key = schoolId ? `/api/classes?school_id=${schoolId}&limit=500` : null;
 
-    const fetcher = async () => {
-        if (!schoolId) return [];
-        const { data, error } = await supabase
-            .from('classes')
-            .select('id, class_name, academic_year')
-            .eq('school_id', schoolId)
-            .eq('is_deleted', false)
-            .order('class_name');
-
-        if (error) throw error;
-        return data || [];
-    };
-
-    const { data, isLoading } = useSWR(key, fetcher, {
+    const { data, isLoading } = useSWR(key, async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+    }, {
         revalidateOnFocus: false,
     });
 
-    return { classes: data || [], loading: isLoading };
+    return { classes: data?.data || [], loading: isLoading };
 }

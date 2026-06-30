@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,35 +34,15 @@ export default function SchoolDetailPage() {
         if (!id) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("schools")
-                .select("*")
-                .eq("id", id)
-                .eq("is_deleted", false)
-                .single();
+            const res = await fetch(`/api/schools/${id}`);
+            if (!res.ok) throw new Error('Not found');
+            const data = await res.json();
 
-            if (error) throw error;
-            setSchool(data);
-
-            const [classesRes, rolesRes] = await Promise.all([
-                supabase.from("classes").select("*").eq("school_id", id).eq("is_deleted", false),
-                supabase.from("roles").select("id, role_name"),
-            ]);
-
-            const roles = rolesRes.data || [];
-            const teacherRoleId = roles.find(r => r.role_name === "Teacher")?.id;
-            const adminRoleId = roles.find(r => r.role_name === "Admin")?.id;
-
-            const [teachersRes, studentsRes, adminsRes] = await Promise.all([
-                supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", teacherRoleId || "").eq("is_deleted", false),
-                supabase.from("students_data").select("*").eq("school_id", id).eq("is_deleted", false),
-                supabase.from("profiles").select("*").eq("school_id", id).eq("role_id", adminRoleId || "").eq("is_deleted", false),
-            ]);
-
-            setClasses(classesRes.data || []);
-            setTeachers(teachersRes.data || []);
-            setStudents(studentsRes.data || []);
-            setAdmins(adminsRes.data || []);
+            setSchool(data.school);
+            setClasses(data.classes || []);
+            setTeachers(data.teachers || []);
+            setStudents(data.students || []);
+            setAdmins(data.admins || []);
         } catch {
             toast.error("Failed to load school details.");
         } finally {
@@ -76,11 +55,8 @@ export default function SchoolDetailPage() {
     const handleDelete = async () => {
         setDeleteLoading(true);
         try {
-            const { error } = await supabase
-                .from("schools")
-                .update({ is_deleted: true, modified_at: new Date().toISOString() })
-                .eq("id", id);
-            if (error) throw error;
+            const res = await fetch(`/api/schools/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to delete');
             toast.success("School deleted successfully.");
             router.push("/dashboard/schools");
         } catch (err: any) {

@@ -1,26 +1,27 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { createContext, useContext, useEffect, useState } from "react";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 type Role = "Superadmin" | "Admin" | "Teacher" | "Student" | null;
 
+interface ProfileData {
+    id: string;
+    email: string;
+    full_name: string;
+    role_id: string;
+    school_id: string;
+    roles: { role_name: string };
+    phone?: string;
+    current_address?: string;
+    permanent_address?: string;
+}
+
 interface AuthContextType {
-    user: User | null;
-    session: Session | null;
-    profile: {
-        id: string;
-        email: string;
-        full_name: string;
-        role_id: string;
-        school_id: string;
-        roles: { role_name: string };
-        phone?: string;
-        current_address?: string;
-        permanent_address?: string;
-    } | null;
+    user: { id: string; email: string; name?: string | null } | null;
+    session: any | null;
+    profile: ProfileData | null;
     role: Role;
     isLoading: boolean;
     signOut: () => Promise<void>;
@@ -29,138 +30,67 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [session, setSession] = useState<Session | null>(null);
-    const [profile, setProfile] = useState<{
-        id: string;
-        email: string;
-        full_name: string;
-        role_id: string;
-        school_id: string;
-        roles: { role_name: string };
-        phone?: string;
-        current_address?: string;
-        permanent_address?: string;
-    } | null>(null);
-    const [role, setRole] = useState<Role>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const { data: session, status } = useSession();
     const router = useRouter();
+    const [profile, setProfile] = useState<ProfileData | null>(null);
+    const isLoading = status === "loading";
 
-    // Use refs to avoid stale closures in event listeners
-    const profileRef = useRef(profile);
-    const mountedRef = useRef(false);
+    const sessionUser = session?.user as any;
 
+    // Derive user object from session
+    const user = sessionUser?.id
+        ? { id: sessionUser.id, email: sessionUser.email || "", name: sessionUser.name }
+        : null;
+
+    // Derive role from session
+    const role = (sessionUser?.role as Role) ?? null;
+
+    // Build profile from session data + fetch additional fields if needed
     useEffect(() => {
-        profileRef.current = profile;
-    }, [profile]);
+        if (!sessionUser?.id) {
+            setProfile(null);
+            return;
+        }
 
-    useEffect(() => {
-        mountedRef.current = true;
-
-        const fetchProfile = async (currentUser: User) => {
-            if (!currentUser?.email) return;
-
-            // Avoid re-fetching if we already have the profile for this user
-            if (profileRef.current?.email === currentUser.email) return;
-
+        // Fetch full profile from API (for phone, addresses, etc.)
+        const fetchProfile = async () => {
             try {
-                // Only set loading if we don't have a profile yet (initial load)
-                if (!profileRef.current) setIsLoading(true);
-
-                const { data: profileData } = await supabase
-                    .from("profiles")
-                    .select(`*, roles(role_name)`)
-                    .eq("email", currentUser.email)
-                    .single();
-
-                if (mountedRef.current && profileData) {
-                    setProfile(profileData);
-                    setRole(profileData.roles?.role_name as Role);
+                const res = await fetch(`/api/profiles/${sessionUser.id}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setProfile({
+                        id: data.id,
+                        email: data.email,
+                        full_name: data.full_name,
+                        role_id: data.role_id,
+                        school_id: data.school_id,
+                        roles: { role_name: data.role_name || sessionUser.role || "" },
+                        phone: data.phone,
+                        current_address: data.current_address,
+                        permanent_address: data.permanent_address,
+                    });
                 }
-            } catch (error) {
-                console.error("Profile fetch error:", error);
-            } finally {
-                if (mountedRef.current) setIsLoading(false);
+            } catch (err) {
+                console.error("Profile fetch error:", err);
             }
         };
 
-        const initializeAuth = async () => {
-            try {
-                // Check active session
-                const { data: { session: initialSession } } = await supabase.auth.getSession();
+        fetchProfile();
+    }, [sessionUser?.id]);
 
-                // Validate session with server (handles the case where user was deleted but token remains)
-                if (initialSession) {
-                    const { data: { user: validatedUser }, error: userError } = await supabase.auth.getUser();
-
-                    if (userError || !validatedUser) {
-                        console.warn("Session invalid, signing out...", userError);
-                        await supabase.auth.signOut();
-                        if (mountedRef.current) {
-                            setSession(null);
-                            setUser(null);
-                            setProfile(null);
-                            setRole(null);
-                            setIsLoading(false);
-                        }
-                        return;
-                    }
-
-                    if (mountedRef.current) {
-                        setSession(initialSession);
-                        setUser(validatedUser);
-                        await fetchProfile(validatedUser);
-                    }
-                } else {
-                    if (mountedRef.current) setIsLoading(false);
-                }
-            } catch (error) {
-                console.error("Auth initialization error:", error);
-                if (mountedRef.current) setIsLoading(false);
-            }
-        };
-
-        initializeAuth();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-            if (!mountedRef.current) return;
-            console.log("Auth Event:", event);
-
-            const currentUser = newSession?.user ?? null;
-
-            if (event === 'SIGNED_OUT') {
-                setSession(null);
-                setUser(null);
-                setProfile(null);
-                setRole(null);
-                setIsLoading(false);
+    // Redirect unauthenticated users away from dashboard
+    useEffect(() => {
+        if (status === "unauthenticated" && typeof window !== "undefined") {
+            const path = window.location.pathname;
+            if (path.startsWith("/dashboard")) {
                 router.push("/");
-                return;
             }
-
-            // Update session/user state
-            setSession(newSession);
-            setUser(currentUser);
-
-            if (currentUser?.email) {
-                await fetchProfile(currentUser);
-            } else if (!currentUser) {
-                setProfile(null);
-                setRole(null);
-                setIsLoading(false);
-            }
-        });
-
-        return () => {
-            mountedRef.current = false;
-            subscription.unsubscribe();
-        };
-    }, [router]);
+        }
+    }, [status, router]);
 
     const signOut = async () => {
-        // Only call Supabase signOut — the onAuthStateChange SIGNED_OUT
-        // event will clear state and redirect to "/"
-        await supabase.auth.signOut();
+        setProfile(null);
+        await nextAuthSignOut({ callbackUrl: "/" });
     };
 
     return (

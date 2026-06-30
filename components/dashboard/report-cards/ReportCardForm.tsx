@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,12 +102,11 @@ export default function ReportCardForm({
 
                 // If no school selected yet and user is Superadmin, load schools for selection
                 if (!effectiveSchoolId && role === "Superadmin") {
-                    const { data: schoolsData } = await supabase
-                        .from("schools")
-                        .select("id, school_name")
-                        .eq("is_deleted", false)
-                        .order("school_name");
-                    setSchools(schoolsData || []);
+                    const res = await fetch('/api/schools?limit=200');
+                    if (res.ok) {
+                        const data = await res.json();
+                        setSchools(data.data || []);
+                    }
                     setLoadingOptions(false);
                     return;
                 }
@@ -120,20 +118,16 @@ export default function ReportCardForm({
                 }
 
                 // Now load students and classes for the selected school
-                const [{ data: s }, { data: c }] = await Promise.all([
-                    supabase.from("students_data")
-                        .select("id, full_name, class_id, classes(class_name)")
-                        .eq("school_id", effectiveSchoolId)
-                        .eq("is_deleted", false)
-                        .order("full_name"),
-                    supabase.from("classes")
-                        .select("id, class_name, academic_year")
-                        .eq("school_id", effectiveSchoolId)
-                        .eq("is_deleted", false)
-                        .order("class_name"),
+                const [sRes, cRes] = await Promise.all([
+                    fetch(`/api/students?school_id=${effectiveSchoolId}&limit=1000`),
+                    fetch(`/api/classes?school_id=${effectiveSchoolId}&limit=500`),
                 ]);
-                setStudents(s || []);
-                setClasses(c || []);
+                
+                const sData = sRes.ok ? await sRes.json() : { data: [] };
+                const cData = cRes.ok ? await cRes.json() : { data: [] };
+                
+                setStudents(sData.data || []);
+                setClasses(cData.data || []);
                 setLoadingOptions(false);
             } catch (err) {
                 console.error("Error loading options:", err);
@@ -183,100 +177,7 @@ export default function ReportCardForm({
         try {
             let cardId = existingCard?.id;
 
-            if (isEdit && cardId) {
-                // Update existing
-                const { error } = await supabase
-                    .from("report_cards")
-                    .update({
-                        class_id: form.class_id || null,
-                        academic_year: form.academic_year,
-                        term: form.term,
-                        remarks: form.remarks,
-                        is_published: form.is_published,
-                        modified_at: new Date().toISOString(),
-                    })
-                    .eq("id", cardId);
-                if (error) throw error;
-
-                // Delete old subjects and re-insert
-                await supabase.from("report_card_subjects").delete().eq("report_card_id", cardId);
-            } else {
-                // Check if an active (non-deleted) report card already exists
-                const { data: activeCards, error: activeCheckError } = await supabase
-                    .from("report_cards")
-                    .select("id")
-                    .eq("student_id", form.student_id)
-                    .eq("academic_year", form.academic_year)
-                    .eq("term", form.term)
-                    .eq("is_deleted", false)
-                    .limit(1);
-
-                if (activeCheckError) throw activeCheckError;
-
-                if (activeCards && activeCards.length > 0) {
-                    toast.error("A report card already exists for this student in this term. Please edit the existing one instead.");
-                    setSaving(false);
-                    return;
-                }
-
-                // Check if a SOFT-DELETED record exists (unique constraint still applies)
-                const { data: deletedCards, error: deletedCheckError } = await supabase
-                    .from("report_cards")
-                    .select("id")
-                    .eq("student_id", form.student_id)
-                    .eq("academic_year", form.academic_year)
-                    .eq("term", form.term)
-                    .eq("is_deleted", true)
-                    .limit(1);
-
-                if (deletedCheckError) throw deletedCheckError;
-
-                if (deletedCards && deletedCards.length > 0) {
-                    // Restore the soft-deleted record instead of inserting a new one
-                    const restoreId = deletedCards[0].id;
-                    const { error: restoreError } = await supabase
-                        .from("report_cards")
-                        .update({
-                            is_deleted: false,
-                            school_id: effectiveSchoolId,
-                            class_id: form.class_id || null,
-                            academic_year: form.academic_year,
-                            term: form.term,
-                            remarks: form.remarks,
-                            created_by: profile?.id,
-                            is_published: form.is_published,
-                            modified_at: new Date().toISOString(),
-                        })
-                        .eq("id", restoreId);
-                    if (restoreError) throw restoreError;
-
-                    // Delete old subjects for the restored record
-                    await supabase.from("report_card_subjects").delete().eq("report_card_id", restoreId);
-                    cardId = restoreId;
-                } else {
-                    // Insert brand new record
-                    const { data, error } = await supabase
-                        .from("report_cards")
-                        .insert({
-                            student_id: form.student_id,
-                            school_id: effectiveSchoolId,
-                            class_id: form.class_id || null,
-                            academic_year: form.academic_year,
-                            term: form.term,
-                            remarks: form.remarks,
-                            created_by: profile?.id,
-                            is_published: form.is_published,
-                        })
-                        .select("id")
-                        .single();
-                    if (error) throw error;
-                    cardId = data.id;
-                }
-            }
-
-            // Insert subjects
             const subjectRows = subjects.map((s) => ({
-                report_card_id: cardId,
                 subject_name: s.subject_name.trim(),
                 max_marks: Number(s.max_marks),
                 obtained_marks: s.obtained_marks !== "" ? Number(s.obtained_marks) : null,
@@ -284,8 +185,54 @@ export default function ReportCardForm({
                 remarks: s.remarks || null,
             }));
 
-            const { error: subjErr } = await supabase.from("report_card_subjects").insert(subjectRows);
-            if (subjErr) throw subjErr;
+            if (isEdit && cardId) {
+                // Update existing
+                const res = await fetch(`/api/report-cards/${cardId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        class_id: form.class_id || null,
+                        academic_year: form.academic_year,
+                        term: form.term,
+                        remarks: form.remarks,
+                        is_published: form.is_published,
+                        subjects: subjectRows,
+                    })
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || "Failed to update report card");
+                }
+            } else {
+                // Insert brand new record
+                // NOTE: The unique constraint check might fail and throw an error from PostgreSQL, 
+                // but the API endpoint will return that error and we will display it to the user.
+                const res = await fetch('/api/report-cards', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        student_id: form.student_id,
+                        school_id: effectiveSchoolId,
+                        class_id: form.class_id || null,
+                        academic_year: form.academic_year,
+                        term: form.term,
+                        remarks: form.remarks,
+                        created_by: profile?.id,
+                        is_published: form.is_published,
+                        subjects: subjectRows,
+                    })
+                });
+                
+                if (!res.ok) {
+                    const err = await res.json();
+                    if (err.error?.includes('unique constraint')) {
+                         throw new Error("A report card already exists for this student in this term.");
+                    }
+                    throw new Error(err.error || "Failed to create report card");
+                }
+                const data = await res.json();
+                cardId = data.id;
+            }
 
             toast.success(isEdit ? "Report card updated!" : "Report card created!");
             if (onSuccess && cardId) onSuccess(cardId);

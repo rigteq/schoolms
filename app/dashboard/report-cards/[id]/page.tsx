@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReportCard, autoGrade, ReportCardSubject } from "@/lib/hooks/useReportCards";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,12 +56,13 @@ export default function ReportCardDetailPage() {
 
     const handleDelete = async () => {
         setDeleting(true);
-        const { error } = await supabase
-            .from("report_cards")
-            .update({ is_deleted: true })
-            .eq("id", id);
-        if (error) {
-            toast.error("Failed to delete: " + error.message);
+        const res = await fetch(`/api/report-cards/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_deleted: true }),
+        });
+        if (!res.ok) {
+            toast.error("Failed to delete report card.");
             setDeleting(false);
         } else {
             toast.success("Report card deleted.");
@@ -74,11 +74,12 @@ export default function ReportCardDetailPage() {
         if (!reportCard) return;
         setPublishing(true);
         const newStatus = !reportCard.is_published;
-        const { error } = await supabase
-            .from("report_cards")
-            .update({ is_published: newStatus, modified_at: new Date().toISOString() })
-            .eq("id", id);
-        if (error) {
+        const res = await fetch(`/api/report-cards/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_published: newStatus }),
+        });
+        if (!res.ok) {
             toast.error("Failed to update status.");
         } else {
             toast.success(newStatus ? "Report card published!" : "Moved back to draft.");

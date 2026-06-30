@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,8 +39,11 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
     useEffect(() => {
         async function fetchSchools() {
-            const { data } = await supabase.from("schools").select("id, school_name").eq("is_deleted", false).order("school_name");
-            if (data) setSchools(data);
+            const res = await fetch('/api/schools?limit=200');
+            if (res.ok) {
+                const data = await res.json();
+                setSchools(data.data || []);
+            }
         }
         if (!defaultSchoolId) {
             fetchSchools();
@@ -52,14 +54,13 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         const sid = defaultSchoolId || formData.school_id;
         if (sid && roleName === "Student") {
             async function fetchClasses() {
-                const { data } = await supabase
-                    .from("classes")
-                    .select("id, class_name")
-                    .eq("school_id", sid)
-                    .eq("is_deleted", false)
-                    .order("class_name");
-                if (data) setClasses(data);
-                else setClasses([]);
+                const res = await fetch(`/api/classes?school_id=${sid}&limit=500`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setClasses(data.data || []);
+                } else {
+                    setClasses([]);
+                }
             }
             fetchClasses();
         } else {

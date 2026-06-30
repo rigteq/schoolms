@@ -34,37 +34,4 @@ CREATE INDEX idx_report_cards_student ON report_cards(student_id) WHERE is_delet
 CREATE INDEX idx_report_cards_school ON report_cards(school_id) WHERE is_deleted = FALSE;
 CREATE INDEX idx_report_card_subjects_card ON report_card_subjects(report_card_id);
 
--- RLS Policies
-ALTER TABLE report_cards ENABLE ROW LEVEL SECURITY;
-ALTER TABLE report_card_subjects ENABLE ROW LEVEL SECURITY;
-
--- Superadmin: Full access
-CREATE POLICY "Superadmin manage report_cards" ON report_cards FOR ALL TO authenticated
-USING ( public.get_my_role() = 'Superadmin' );
-
--- Admin: Full access within their school
-CREATE POLICY "Admin manage school report_cards" ON report_cards FOR ALL TO authenticated
-USING (
-    school_id = public.get_my_school_id()
-    AND public.get_my_role() = 'Admin'
-);
-
--- Teacher: Read + Write within their school (cannot publish)
-CREATE POLICY "Teacher manage school report_cards" ON report_cards FOR ALL TO authenticated
-USING (
-    school_id = public.get_my_school_id()
-    AND public.get_my_role() = 'Teacher'
-);
-
--- Subjects: Anyone with school access can manage subjects via report_card join
-CREATE POLICY "Superadmin manage report_card_subjects" ON report_card_subjects FOR ALL TO authenticated
-USING ( public.get_my_role() = 'Superadmin' );
-
-CREATE POLICY "Users manage report_card_subjects" ON report_card_subjects FOR ALL TO authenticated
-USING (
-    EXISTS (
-        SELECT 1 FROM report_cards rc
-        WHERE rc.id = report_card_subjects.report_card_id
-          AND rc.school_id = public.get_my_school_id()
-    )
-);
+-- Note: Row Level Security (RLS) has been removed because authorization is now fully managed by the Next.js API route layer using NextAuth sessions.

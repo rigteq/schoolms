@@ -5,7 +5,6 @@ import { Users, BookOpen, BarChart3, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
 export default function TeacherDashboard() {
@@ -19,32 +18,29 @@ export default function TeacherDashboard() {
             if (!profile?.id || !profile?.school_id) return;
 
             try {
-                // Fetch school name
-                const { data: schoolData } = await supabase
-                    .from("schools")
-                    .select("school_name")
-                    .eq("id", profile.school_id)
-                    .single();
-                if (schoolData) setSchoolName(schoolData.school_name);
+                // Fetch school name and teacher data in parallel
+                const [schoolRes, teacherRes] = await Promise.all([
+                    fetch(`/api/schools/${profile.school_id}`),
+                    fetch(`/api/teachers/${profile.id}`),
+                ]);
 
-                // Get teacher's assigned class IDs
-                const { data: teacherData } = await supabase
-                    .from("teachers_data")
-                    .select("class_ids")
-                    .eq("id", profile.id)
-                    .single();
+                const schoolData = schoolRes.ok ? await schoolRes.json() : null;
+                const teacherData = teacherRes.ok ? await teacherRes.json() : null;
 
-                const myClassIds: string[] = teacherData?.class_ids || [];
-                const classCount = myClassIds.length;
+                if (schoolData?.school?.school_name) setSchoolName(schoolData.school.school_name);
+
+                const myClasses = teacherData?.classes || [];
+                const classCount = myClasses.length;
 
                 let studentCount = 0;
-                if (myClassIds.length > 0) {
-                    const { count } = await supabase
-                        .from("students_data")
-                        .select("*", { count: "exact", head: true })
-                        .in("class_id", myClassIds)
-                        .eq("is_deleted", false);
-                    studentCount = count || 0;
+                if (classCount > 0) {
+                    // Sum up students across all classes
+                    const classIds = myClasses.map((c: any) => c.id);
+                    const studentRes = await fetch(`/api/students?school_id=${profile.school_id}&limit=1000`);
+                    if (studentRes.ok) {
+                        const studentData = await studentRes.json();
+                        studentCount = (studentData.data || []).filter((s: any) => classIds.includes(s.class_id)).length;
+                    }
                 }
 
                 setStats({ classes: classCount, students: studentCount });

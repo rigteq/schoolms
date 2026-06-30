@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,25 +45,25 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
         e.preventDefault();
         setLoading(true);
         try {
-            const table = isStudent ? "students_data" : "profiles";
-            const { error } = await supabase
-                .from(table)
-                .update({
+            const apiUrl = isStudent ? `/api/students/${profile.id}` : `/api/profiles/${profile.id}`;
+            const res = await fetch(apiUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     full_name: formData.full_name,
                     email: formData.email,
                     phone: formData.phone,
                     current_address: formData.current_address,
-                    modified_at: new Date().toISOString(),
-                })
-                .eq("id", profile.id);
-
-            if (error) throw error;
+                }),
+            });
+            if (!res.ok) throw new Error('Update failed');
 
             if (isTeacher) {
-                const { error: teacherError } = await supabase
-                    .from("teachers_data")
-                    .upsert({ id: profile.id, subject_specialization: formData.subject_specialization });
-                if (teacherError) throw teacherError;
+                await fetch(`/api/teachers-data/${profile.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject_specialization: formData.subject_specialization }),
+                });
             }
 
             toast.success("Profile updated successfully.");
