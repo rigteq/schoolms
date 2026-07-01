@@ -1,7 +1,12 @@
 "use client";
 
 import useSWR from 'swr';
-import { supabase } from '@/lib/supabase';
+import {
+    fetchReportCardsAction,
+    fetchReportCardByIdAction,
+    fetchStudentsForReportCardAction,
+    fetchClassesForReportCardAction
+} from '@/app/actions/report-actions';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -72,34 +77,7 @@ export function useReportCards({
     itemsPerPage = ITEMS_PER_PAGE,
 }: UseReportCardsOptions) {
     const key = ['report-cards', page, search, classId, academicYear, term].join('#');
-
-    const fetcher = async () => {
-        let query = supabase
-            .from('report_cards')
-            .select(
-                `*, 
-                students_data(full_name, email),
-                classes(class_name),
-                schools(school_name)`,
-                { count: 'exact' }
-            )
-            .eq('is_deleted', false);
-
-        if (search) query = query.ilike('students_data.full_name', `%${search}%`);
-        if (classId) query = query.eq('class_id', classId);
-        if (academicYear) query = query.eq('academic_year', academicYear);
-        if (term) query = query.eq('term', term);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query
-            .range(from, to)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchReportCardsAction(page, search, classId, academicYear, term, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -119,31 +97,14 @@ export function useReportCards({
 
 export function useReportCard(id: string | undefined) {
     const key = id ? `report-card-${id}` : null;
-
-    const fetcher = async () => {
-        if (!id) return null;
-        const { data, error } = await supabase
-            .from('report_cards')
-            .select(
-                `*, 
-                students_data(full_name, email, phone, dob, parent_name, parent_phone),
-                classes(class_name, academic_year),
-                schools(school_name, email, phone, address),
-                report_card_subjects(*)`
-            )
-            .eq('id', id)
-            .single();
-
-        if (error) throw error;
-        return data as ReportCard;
-    };
+    const fetcher = async () => fetchReportCardByIdAction(id);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         revalidateOnFocus: false,
     });
 
     return {
-        reportCard: data || null,
+        reportCard: (data || null) as ReportCard | null,
         loading: isLoading,
         error,
         mutate,
@@ -152,19 +113,7 @@ export function useReportCard(id: string | undefined) {
 
 export function useStudentsForReportCard(schoolId: string | undefined) {
     const key = schoolId ? `students-for-rc-${schoolId}` : null;
-
-    const fetcher = async () => {
-        if (!schoolId) return [];
-        const { data, error } = await supabase
-            .from('students_data')
-            .select('id, full_name, class_id, classes(class_name)')
-            .eq('school_id', schoolId)
-            .eq('is_deleted', false)
-            .order('full_name');
-
-        if (error) throw error;
-        return data || [];
-    };
+    const fetcher = async () => fetchStudentsForReportCardAction(schoolId);
 
     const { data, isLoading } = useSWR(key, fetcher, {
         revalidateOnFocus: false,
@@ -175,19 +124,7 @@ export function useStudentsForReportCard(schoolId: string | undefined) {
 
 export function useClassesForReportCard(schoolId: string | undefined) {
     const key = schoolId ? `classes-for-rc-${schoolId}` : null;
-
-    const fetcher = async () => {
-        if (!schoolId) return [];
-        const { data, error } = await supabase
-            .from('classes')
-            .select('id, class_name, academic_year')
-            .eq('school_id', schoolId)
-            .eq('is_deleted', false)
-            .order('class_name');
-
-        if (error) throw error;
-        return data || [];
-    };
+    const fetcher = async () => fetchClassesForReportCardAction(schoolId);
 
     const { data, isLoading } = useSWR(key, fetcher, {
         revalidateOnFocus: false,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { fetchAdminTeachersAction } from "@/app/actions/data-actions";
+import { updateClassAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,15 +32,7 @@ export default function EditClassForm({ cls, onSuccess }: EditClassFormProps) {
 
     useEffect(() => {
         async function fetchTeachers() {
-            const { data: roleData } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
-            if (!roleData) return;
-            const { data } = await supabase
-                .from("profiles")
-                .select("id, full_name")
-                .eq("school_id", cls.school_id)
-                .eq("role_id", roleData.id)
-                .eq("is_deleted", false)
-                .order("full_name");
+            const { data } = await fetchAdminTeachersAction(1, "", cls.school_id, 1000);
             if (data) setTeachers(data);
         }
         fetchTeachers();
@@ -49,15 +42,12 @@ export default function EditClassForm({ cls, onSuccess }: EditClassFormProps) {
         e.preventDefault();
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from("classes")
-                .update({
-                    class_name: formData.class_name,
-                    academic_year: formData.academic_year,
-                    class_teacher_id: formData.class_teacher_id || null,
-                    modified_at: new Date().toISOString(),
-                })
-                .eq("id", cls.id);
+            const { error } = await updateClassAction(cls.id, {
+                class_name: formData.class_name,
+                academic_year: formData.academic_year,
+                class_teacher_id: formData.class_teacher_id || null,
+                modified_at: new Date().toISOString(),
+            });
 
             if (error) throw error;
             toast.success("Class updated successfully!");

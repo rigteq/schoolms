@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { fetchMyLeavesAction, fetchAllLeavesAction, updateLeaveStatusAction } from "@/app/actions/leave-actions";
 import {
     Table,
     TableBody,
@@ -39,24 +39,16 @@ export default function LeaveApplicationList() {
         try {
             if (!profile?.school_id) return;
 
-            let query = supabase
-                .from("leave_details")
-                .select("*, profiles(full_name)")
-                .neq("leave_type", "global") // Exclude global holidays
-                .order("created_time", { ascending: false });
-
+            let result;
             if (role === "Admin" || role === "Superadmin") {
-                // Admin sees all in school
-                query = query.eq("school_id", profile.school_id);
+                result = await fetchAllLeavesAction(profile.school_id);
+                // filter out global manually if needed or leave as is (backend action excludes them? wait no backend doesn't exclude them)
             } else {
-                // Teachers/Students see only their own
-                query = query.eq("profile_id", user?.id);
+                result = await fetchMyLeavesAction(user?.id || "");
             }
 
-            const { data, error } = await query;
-
-            if (error) throw error;
-            setLeaves(data || []);
+            const data = (result.data || []).filter((l: any) => l.leave_type !== 'global');
+            setLeaves(data);
         } catch (error: any) {
             console.error("Error fetching leaves:", error);
             toast.error("Failed to load leave applications.");
@@ -71,10 +63,7 @@ export default function LeaveApplicationList() {
 
     const handleStatusUpdate = async (id: string, newStatus: "approved" | "rejected") => {
         try {
-            const { error } = await supabase
-                .from("leave_details")
-                .update({ status: newStatus, edited_time: new Date().toISOString() })
-                .eq("id", id);
+            const { error } = await updateLeaveStatusAction(id, newStatus, user?.id || "", "");
 
             if (error) throw error;
 

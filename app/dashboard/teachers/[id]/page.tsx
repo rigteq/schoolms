@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { fetchTeacherDetailsAction } from "@/app/actions/data-actions";
+import { deleteRecordAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School, BookOpen } from "lucide-react";
@@ -35,35 +36,11 @@ export default function TeacherDetailPage() {
         if (!id) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("profiles")
-                .select(`*, schools (school_name)`)
-                .eq("id", id)
-                .single();
-
-            if (error) throw error;
-
-            const { data: teacherData } = await supabase
-                .from("teachers_data")
-                .select("subject_specialization, class_ids")
-                .eq("id", id)
-                .single();
-
-            setTeacher({ ...data, subject_specialization: teacherData?.subject_specialization ?? null });
-
-            if (teacherData?.class_ids?.length) {
-                const { data: classesData } = await supabase
-                    .from("classes")
-                    .select("id, class_name, academic_year")
-                    .in("id", teacherData.class_ids);
-
-                setClasses(classesData?.map(c => ({
-                    ...c,
-                    subject_name: teacherData.subject_specialization
-                })) || []);
-            } else {
-                setClasses([]);
-            }
+            const data = await fetchTeacherDetailsAction(id as string);
+            if (!data) throw new Error("Teacher not found");
+            
+            setTeacher(data.teacher);
+            setClasses(data.classes || []);
         } catch {
             // silently fail — user sees empty state
         } finally {
@@ -77,7 +54,7 @@ export default function TeacherDetailPage() {
 
     const handleDelete = async () => {
         setDeleting(true);
-        await supabase.from("profiles").update({ is_deleted: true }).eq("id", id);
+        await deleteRecordAction("profiles", id as string);
         setDeleting(false);
         router.push("/dashboard/teachers");
     };

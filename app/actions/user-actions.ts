@@ -1,6 +1,8 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { query, queryOne } from "@/lib/db";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 interface CreateUserParams {
     email: string;
@@ -32,66 +34,37 @@ export async function createUserWithRole(params: CreateUserParams) {
 
         // Special handling for Student role (no login/profiles)
         if (role_name === "Student") {
-            const { data: studentData, error: studentError } = await supabaseAdmin.from("students_data").insert({
-                school_id,
-                class_id: class_id || null,
-                full_name,
-                email,
-                phone,
-                current_address: address,
-                dob: dob || null,
-            }).select("id").single();
-
-            if (studentError) throw new Error(`Student creation failed: ${studentError.message}`);
-            return { success: true, user_id: studentData.id };
+            const result = await query(
+                `INSERT INTO students_data (school_id, class_id, full_name, email, phone, current_address, dob)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+                [school_id, class_id || null, full_name, email, phone || null, address || null, dob || null]
+            );
+            return { success: true, user_id: result.rows[0].id };
         }
 
-        const { data: roleData, error: roleError } = await supabaseAdmin
-            .from("roles")
-            .select("id")
-            .eq("role_name", role_name)
-            .single();
+        const role = await queryOne<{id: string}>(`SELECT id FROM roles WHERE role_name = $1`, [role_name]);
 
-        if (roleError || !roleData) {
+        if (!role) {
             throw new Error(`Invalid Role: ${role_name}`);
         }
-        const role_id = roleData.id;
+        const role_id = role.id;
 
         const tempPassword = password || "tempPassword123";
+        const password_hash = await bcrypt.hash(tempPassword, 10);
+        const user_id = crypto.randomUUID();
 
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password: tempPassword,
-            email_confirm: true,
-            user_metadata: { full_name, school_id, role: role_name },
-            app_metadata: { role: role_name },
-        });
-
-        if (authError) throw authError;
-        const user_id = authData.user.id;
-
-        const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-            id: user_id,
-            role_id,
-            school_id,
-            full_name,
-            email,
-            phone,
-            current_address: address,
-            dob: dob || null,
-        });
-
-        if (profileError) {
-            throw new Error(`Profile creation failed: ${profileError.message}`);
-        }
+        await query(
+            `INSERT INTO profiles (id, role_id, school_id, full_name, email, password_hash, phone, current_address, dob)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [user_id, role_id, school_id, full_name, email, password_hash, phone || null, address || null, dob || null]
+        );
 
         if (role_name === "Teacher") {
-            const { error: teacherError } = await supabaseAdmin.from("teachers_data").insert({
-                id: user_id,
-                class_ids: [],
-                subject_specialization: subject_name || null,
-            });
-            if (teacherError) throw new Error(`Teacher data creation failed: ${teacherError.message}`);
+            await query(
+                `INSERT INTO teachers_data (id, class_ids, subject_specialization)
+                 VALUES ($1, $2, $3)`,
+                [user_id, [], subject_name || null]
+            );
         }
 
         return { success: true, user_id };
