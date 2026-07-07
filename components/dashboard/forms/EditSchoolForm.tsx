@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { updateSchoolAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,10 +33,7 @@ export default function EditSchoolForm({ school, onSuccess }: EditSchoolFormProp
         e.preventDefault();
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from("schools")
-                .update({ ...formData, modified_at: new Date().toISOString() })
-                .eq("id", school.id);
+            const { error } = await updateSchoolAction(school.id, { ...formData, modified_at: new Date().toISOString() });
 
             if (error) throw error;
 

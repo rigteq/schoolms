@@ -1,6 +1,5 @@
 -- SCHOOL MANAGEMENT SYSTEM (SchoolMS) - REVISED GOLDEN SCHEMA
 -- Use this file to completely reset the database structure.
--- RUN THIS IN SUPABASE SQL EDITOR
 
 -- ==============================================================================
 -- 1. CLEANUP (Strict Tear Down)

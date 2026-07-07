@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createSchoolAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,13 +24,10 @@ export default function AddSchoolForm({ onSuccess }: { onSuccess?: () => void })
         setLoading(true);
 
         try {
-            const { error: insertError } = await supabase
-                .from("schools")
-                .insert([formData]);
+            const { error: insertError } = await createSchoolAction(formData);
 
             if (insertError) {
-                console.error("Supabase Error:", insertError);
-                throw new Error(insertError.message || "Failed to create school");
+                throw new Error(insertError || "Failed to create school");
             }
 
             toast.success("School created successfully!");

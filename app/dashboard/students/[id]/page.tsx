@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { fetchStudentDetailsAction } from "@/app/actions/data-actions";
+import { deleteRecordAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Trash2, Mail, Phone, MapPin, School } from "lucide-react";
@@ -36,32 +37,14 @@ export default function StudentDetailPagePage() {
         if (!id) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from("students_data")
-                .select(`
-             *,
-             schools (school_name),
-             classes (id, class_name, academic_year)
-          `)
-                .eq("id", id)
-                .single();
-
-            if (error) throw error;
-            setStudent(data);
-
-            if (data?.classes) {
-                setEnrolledClass(data.classes);
-
-                const { data: teachersData } = await supabase
-                    .from("teachers_data")
-                    .select(`
-                   id,
-                   subject_specialization,
-                   profiles:id (full_name, email)
-                `)
-                    .contains("class_ids", [data.classes.id]);
-
-                setTeachers(teachersData?.map((t: any) => ({ ...t.profiles, id: t.id, subject: t.subject_specialization })) || []);
+            const data = await fetchStudentDetailsAction(id as string);
+            if (!data) throw new Error("Student not found");
+            
+            setStudent(data.student);
+            
+            if (data.student?.classes?.id) {
+                setEnrolledClass(data.student.classes);
+                setTeachers(data.teachers || []);
             } else {
                 setEnrolledClass(null);
                 setTeachers([]);
@@ -79,7 +62,7 @@ export default function StudentDetailPagePage() {
 
     const handleDelete = async () => {
         setDeleting(true);
-        await supabase.from("students_data").update({ is_deleted: true }).eq("id", id);
+        await deleteRecordAction("students_data", id as string);
         setDeleting(false);
         router.push("/dashboard/students");
     };

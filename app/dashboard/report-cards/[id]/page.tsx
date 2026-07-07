@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useReportCard, autoGrade, ReportCardSubject } from "@/lib/hooks/useReportCards";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { deleteRecordAction, updateReportCardAction } from "@/app/actions/mutations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,16 +57,14 @@ export default function ReportCardDetailPage() {
 
     const handleDelete = async () => {
         setDeleting(true);
-        const { error } = await supabase
-            .from("report_cards")
-            .update({ is_deleted: true })
-            .eq("id", id);
-        if (error) {
-            toast.error("Failed to delete: " + error.message);
-            setDeleting(false);
-        } else {
+        try {
+            await deleteRecordAction("report_cards", id);
             toast.success("Report card deleted.");
             router.push("/dashboard/report-cards");
+        } catch (error: any) {
+            toast.error("Failed to delete: " + error);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -74,15 +72,13 @@ export default function ReportCardDetailPage() {
         if (!reportCard) return;
         setPublishing(true);
         const newStatus = !reportCard.is_published;
-        const { error } = await supabase
-            .from("report_cards")
-            .update({ is_published: newStatus, modified_at: new Date().toISOString() })
-            .eq("id", id);
-        if (error) {
-            toast.error("Failed to update status.");
-        } else {
+        try {
+            const { error } = await updateReportCardAction(id, { is_published: newStatus });
+            if (error) throw error;
             toast.success(newStatus ? "Report card published!" : "Moved back to draft.");
             mutate();
+        } catch {
+            toast.error("Failed to update status.");
         }
         setPublishing(false);
     };

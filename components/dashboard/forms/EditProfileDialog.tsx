@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { updateProfileAction, updateStudentAction, updateTeacherSubjectsAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,24 +46,30 @@ export default function EditProfileDialog({ profile, onSuccess, trigger, isTeach
         e.preventDefault();
         setLoading(true);
         try {
-            const table = isStudent ? "students_data" : "profiles";
-            const { error } = await supabase
-                .from(table)
-                .update({
+            if (isStudent) {
+                const { error } = await updateStudentAction(profile.id, {
                     full_name: formData.full_name,
                     email: formData.email,
                     phone: formData.phone,
                     current_address: formData.current_address,
                     modified_at: new Date().toISOString(),
-                })
-                .eq("id", profile.id);
-
-            if (error) throw error;
+                });
+                if (error) throw error;
+            } else {
+                const { error } = await updateProfileAction(profile.id, {
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    current_address: formData.current_address,
+                    modified_at: new Date().toISOString(),
+                });
+                if (error) throw error;
+            }
 
             if (isTeacher) {
-                const { error: teacherError } = await supabase
-                    .from("teachers_data")
-                    .upsert({ id: profile.id, subject_specialization: formData.subject_specialization });
+                const { error: teacherError } = await updateTeacherSubjectsAction(profile.id, {
+                    subject_specialization: formData.subject_specialization
+                });
                 if (teacherError) throw teacherError;
             }
 

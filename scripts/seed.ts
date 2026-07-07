@@ -1,107 +1,77 @@
-import { createClient } from "@supabase/supabase-js";
+import { Pool } from "pg";
 import dotenv from "dotenv";
 import { resolve } from "path";
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 dotenv.config({ path: resolve(process.cwd(), ".env.local") });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
+if (!databaseUrl) {
+    console.error("Missing DATABASE_URL environment variable.");
     process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-    },
-});
+const pool = new Pool({ connectionString: databaseUrl });
 
 async function main() {
     console.log("🌱 Starting System Seed (Superadmin + 2 Schools + All Staff)...");
 
     // 1. Fetch Roles
-    const { data: roles, error: rolesError } = await supabase.from("roles").select("*");
-    if (rolesError) {
-        console.error("❌ Roles query error:", rolesError.message);
-        process.exit(1);
-    }
+    const { rows: roles } = await pool.query("SELECT * FROM roles");
+    
     if (!roles || !roles.length) {
         console.error("❌ Roles table is empty. Please run docs.sql first.");
         process.exit(1);
     }
 
     const roleMap = {
-        Teacher: roles.find((r) => r.role_name === "Teacher")?.id,
-        Admin: roles.find((r) => r.role_name === "Admin")?.id,
-        Superadmin: roles.find((r) => r.role_name === "Superadmin")?.id,
+        Teacher: roles.find((r: any) => r.role_name === "Teacher")?.id,
+        Admin: roles.find((r: any) => r.role_name === "Admin")?.id,
+        Superadmin: roles.find((r: any) => r.role_name === "Superadmin")?.id,
     };
 
     const credentialsLog: string[] = [];
     const password = "password2026";
+    const password_hash = await bcrypt.hash(password, 10);
 
-    // Helper to create user (Superadmin/Admin/Teacher)
+    // Helper to create user
     const createAuthUser = async (email: string, name: string, roleName: 'Superadmin' | 'Admin' | 'Teacher', schoolId: string | null) => {
-        const { data: createdData, error: createError } = await supabase.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: { full_name: name, school_id: schoolId, role: roleName },
-            app_metadata: { role: roleName }
-        });
-
-        let userId: string;
-        if (createError) {
-            if (createError.message.includes("already registered") || createError.message.includes("already exists")) {
-                const { data: { users } } = await supabase.auth.admin.listUsers();
-                const existing = users.find(u => u.email === email);
-                if (existing) {
-                    userId = existing.id;
-                    await supabase.auth.admin.updateUserById(userId, {
-                        password,
-                        user_metadata: { full_name: name, school_id: schoolId, role: roleName },
-                        app_metadata: { role: roleName }
-                    });
-                } else {
-                    console.error(`❌ Could not find existing user ${email}`);
-                    return null;
-                }
+        try {
+            // Check if exists
+            const { rows: existing } = await pool.query("SELECT id FROM profiles WHERE email = $1", [email]);
+            let userId: string;
+            
+            if (existing.length > 0) {
+                userId = existing[0].id;
+                // Update password and profile
+                await pool.query(
+                    "UPDATE profiles SET password_hash = $1, full_name = $2, role_id = $3, school_id = $4 WHERE id = $5",
+                    [password_hash, name, (roleMap as any)[roleName], schoolId, userId]
+                );
             } else {
-                console.error(`❌ Error creating user ${email}:`, createError.message);
-                return null;
+                userId = crypto.randomUUID();
+                await pool.query(
+                    `INSERT INTO profiles (id, role_id, school_id, full_name, email, password_hash, created_at, is_deleted)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW(), false)`,
+                    [userId, (roleMap as any)[roleName], schoolId, name, email, password_hash]
+                );
+
+                if (roleName === 'Teacher') {
+                    await pool.query(
+                        `INSERT INTO teachers_data (id, class_ids, subject_specialization) VALUES ($1, $2, $3)`,
+                        [userId, [], "General"]
+                    );
+                }
             }
-        } else {
-            userId = createdData.user.id;
-        }
 
-        // Upsert Profile
-        const { error: profileError } = await supabase.from("profiles").upsert({
-            id: userId,
-            role_id: (roleMap as any)[roleName],
-            school_id: schoolId,
-            full_name: name,
-            email: email,
-            created_at: new Date().toISOString(),
-            is_deleted: false,
-        });
-
-        if (profileError) {
-            console.error(`❌ Profile Error for ${name}:`, profileError.message);
+            credentialsLog.push(`${roleName}: ${email} / ${password}`);
+            return userId;
+        } catch (error: any) {
+            console.error(`❌ Error creating user ${email}:`, error.message);
             return null;
         }
-
-        if (roleName === 'Teacher') {
-            await supabase.from("teachers_data").upsert({
-                id: userId,
-                class_ids: [],
-                subject_specialization: "General"
-            });
-        }
-
-        credentialsLog.push(`${roleName}: ${email} / ${password}`);
-        return userId;
     };
 
     // 2. Create Superadmin
@@ -118,19 +88,22 @@ async function main() {
         const s = schools[sIdx];
         console.log(`\n🏫 Creating School: ${s.name}`);
 
-        // Create/Get School
-        const { data: newSchool, error: schoolError } = await supabase.from("schools").upsert({
-            school_name: s.name,
-            address: `Address for ${s.name}`,
-            email: `admin@${s.domain}`,
-            phone: `555-000${sIdx + 1}`
-        }, { onConflict: 'school_name' }).select().single();
-
-        if (schoolError || !newSchool) {
-            console.error(`❌ Failed to create/get school ${s.name}:`, schoolError?.message);
-            continue;
+        let schoolId: string;
+        try {
+            const { rows: existingSchool } = await pool.query("SELECT id FROM schools WHERE school_name = $1", [s.name]);
+            if (existingSchool.length > 0) {
+                schoolId = existingSchool[0].id;
+            } else {
+                const { rows: newSchool } = await pool.query(
+                    `INSERT INTO schools (school_name, address, email, phone) VALUES ($1, $2, $3, $4) RETURNING id`,
+                    [s.name, `Address for ${s.name}`, `admin@${s.domain}`, `555-000${sIdx + 1}`]
+                );
+                schoolId = newSchool[0].id;
+            }
+        } catch (err: any) {
+             console.error(`❌ Failed to create/get school ${s.name}:`, err.message);
+             continue;
         }
-        const schoolId = newSchool.id;
 
         // Create 2 Admins
         for (let i = 1; i <= 2; i++) {
@@ -145,15 +118,16 @@ async function main() {
         // Create 4 Students (No Auth)
         for (let i = 1; i <= 4; i++) {
             const sName = `${s.name} Student ${i}`;
-            const { error: studentError } = await supabase.from("students_data").insert({
-                school_id: schoolId,
-                full_name: sName,
-                email: `student${i}@${s.domain}`,
-                parent_name: `Parent of ${sName}`,
-                parent_phone: `555-1234-${i}`
-            });
-            if (studentError) {
-                console.error(`❌ Failed to create student ${sName}:`, studentError.message);
+            try {
+                const { rows: existingStudent } = await pool.query("SELECT id FROM students_data WHERE email = $1", [`student${i}@${s.domain}`]);
+                if (existingStudent.length === 0) {
+                     await pool.query(
+                        `INSERT INTO students_data (school_id, full_name, email, parent_name, parent_phone) VALUES ($1, $2, $3, $4, $5)`,
+                        [schoolId, sName, `student${i}@${s.domain}`, `Parent of ${sName}`, `555-1234-${i}`]
+                    );
+                }
+            } catch (err: any) {
+                console.error(`❌ Failed to create student ${sName}:`, err.message);
             }
         }
     }
@@ -163,6 +137,8 @@ async function main() {
     console.log("CREDENTIALS SUMMARY:");
     credentialsLog.forEach(line => console.log(line));
     console.log("-----------------------------------------");
+    
+    await pool.end();
 }
 
 main().catch(err => {

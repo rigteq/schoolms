@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { fetchSchoolsAction } from "@/app/actions/data-actions";
+import { createClassAction } from "@/app/actions/mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,7 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
     useEffect(() => {
         if (!defaultSchoolId) {
             async function fetchSchools() {
-                const { data } = await supabase.from("schools").select("id, school_name").order("school_name");
+                const { data } = await fetchSchoolsAction(1, "", 100);
                 if (data) setSchools(data);
             }
             fetchSchools();
@@ -48,9 +49,7 @@ export default function AddClassForm({ onSuccess, defaultSchoolId }: AddClassFor
         setError(null);
 
         try {
-            const { error: insertError } = await supabase
-                .from("classes")
-                .insert([{ ...formData, school_id: schoolIdToUse }]);
+            const { error: insertError } = await createClassAction({ ...formData, school_id: schoolIdToUse });
 
             if (insertError) throw insertError;
 

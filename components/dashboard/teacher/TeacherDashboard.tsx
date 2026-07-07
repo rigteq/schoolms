@@ -5,8 +5,9 @@ import { Users, BookOpen, BarChart3, Calendar } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { fetchSchoolNameAction } from "@/app/actions/mutations";
+import { fetchTeacherClassesAction } from "@/app/actions/data-actions";
 
 export default function TeacherDashboard() {
     const { profile, isLoading: authLoading } = useAuth();
@@ -20,32 +21,16 @@ export default function TeacherDashboard() {
 
             try {
                 // Fetch school name
-                const { data: schoolData } = await supabase
-                    .from("schools")
-                    .select("school_name")
-                    .eq("id", profile.school_id)
-                    .single();
+                const { data: schoolData } = await fetchSchoolNameAction(profile.school_id);
                 if (schoolData) setSchoolName(schoolData.school_name);
 
-                // Get teacher's assigned class IDs
-                const { data: teacherData } = await supabase
-                    .from("teachers_data")
-                    .select("class_ids")
-                    .eq("id", profile.id)
-                    .single();
-
-                const myClassIds: string[] = teacherData?.class_ids || [];
-                const classCount = myClassIds.length;
-
+                // Get teacher's classes and students count
+                const { data: classesData } = await fetchTeacherClassesAction(profile.id);
+                const classCount = classesData.length;
                 let studentCount = 0;
-                if (myClassIds.length > 0) {
-                    const { count } = await supabase
-                        .from("students_data")
-                        .select("*", { count: "exact", head: true })
-                        .in("class_id", myClassIds)
-                        .eq("is_deleted", false);
-                    studentCount = count || 0;
-                }
+                classesData.forEach(c => {
+                    studentCount += c.students_data[0].count;
+                });
 
                 setStats({ classes: classCount, students: studentCount });
             } catch (error) {

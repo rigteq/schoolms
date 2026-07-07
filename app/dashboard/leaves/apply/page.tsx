@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { createLeaveRequestAction } from "@/app/actions/leave-actions";
 import { useState } from "react";
 import { toast } from "sonner"; // Assuming sonner is installed and configured
 import { Button } from "@/components/ui/button";
@@ -91,7 +91,7 @@ export default function ApplyLeavePage() {
                 status: status,
             };
 
-            const { error } = await supabase.from("leave_details").insert(payload);
+            const { error } = await createLeaveRequestAction(payload);
 
             if (error) throw error;
 
@@ -100,7 +100,7 @@ export default function ApplyLeavePage() {
 
         } catch (error: any) {
             console.error("Error submitting leave:", error);
-            toast.error(error.message || "Failed to submit leave application.");
+            toast.error(error || "Failed to submit leave application.");
         } finally {
             setLoading(false);
         }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { fetchSchoolsAction, fetchAdminClassesAction } from "@/app/actions/data-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +40,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
 
     useEffect(() => {
         async function fetchSchools() {
-            const { data } = await supabase.from("schools").select("id, school_name").eq("is_deleted", false).order("school_name");
+            const { data } = await fetchSchoolsAction(1, "", 100);
             if (data) setSchools(data);
         }
         if (!defaultSchoolId) {
@@ -52,12 +52,7 @@ export default function AddProfileForm({ roleName, onSuccess, defaultSchoolId }:
         const sid = defaultSchoolId || formData.school_id;
         if (sid && roleName === "Student") {
             async function fetchClasses() {
-                const { data } = await supabase
-                    .from("classes")
-                    .select("id, class_name")
-                    .eq("school_id", sid)
-                    .eq("is_deleted", false)
-                    .order("class_name");
+                const { data } = await fetchAdminClassesAction(1, "", sid, 100);
                 if (data) setClasses(data);
                 else setClasses([]);
             }

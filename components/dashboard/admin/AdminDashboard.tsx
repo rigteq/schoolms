@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import AddProfileForm from "@/components/dashboard/forms/AddProfileForm";
 import AddClassForm from "@/components/dashboard/forms/AddClassForm";
 import { useSchoolStats } from "@/lib/hooks/useData";
-import { supabase } from "@/lib/supabase";
+import { fetchSchoolNameAction } from "@/app/actions/mutations";
 
 export default function AdminDashboard() {
     const { profile, isLoading: authLoading } = useAuth();
@@ -25,7 +25,7 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         if (schoolId) {
-            supabase.from('schools').select('school_name').eq('id', schoolId).single().then(({ data }) => {
+            fetchSchoolNameAction(schoolId).then(({ data }) => {
                 if (data) setSchoolName(data.school_name);
             });
         }

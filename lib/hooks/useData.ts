@@ -1,7 +1,19 @@
 "use client";
 
 import useSWR from 'swr';
-import { supabase } from '@/lib/supabase';
+import {
+    fetchSchoolsAction,
+    fetchAdminsAction,
+    fetchTeachersAction,
+    fetchStudentsAction,
+    fetchClassesAction,
+    fetchStatsAction,
+    fetchSchoolStatsAction,
+    fetchAdminTeachersAction,
+    fetchAdminStudentsAction,
+    fetchAdminClassesAction,
+    fetchTeacherClassesAction
+} from '@/app/actions/data-actions';
 
 interface UsePaginationOptions {
     page: number;
@@ -13,18 +25,7 @@ const ITEMS_PER_PAGE = 50;
 
 export function useSchools({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`schools`, page, search].join('#');
-
-    const fetcher = async () => {
-        let query = supabase.from("schools").select("*", { count: "exact" }).eq("is_deleted", false);
-        if (search) query = query.ilike("school_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchSchoolsAction(page, search, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -44,21 +45,7 @@ export function useSchools({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UseP
 
 export function useAdmins({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`admins`, page, search].join('#');
-
-    const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Admin").single();
-        if (!roles) return { data: [], count: 0 };
-
-        let query = supabase.from("profiles").select(`*, schools(school_name)`, { count: "exact" }).eq("role_id", roles.id).eq("is_deleted", false);
-        if (search) query = query.ilike("full_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchAdminsAction(page, search, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -78,23 +65,7 @@ export function useAdmins({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePa
 
 export function useTeachers({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`teachers`, page, search].join('#');
-
-    const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
-        if (!roles) return { data: [], count: 0 };
-
-        let query = supabase.from("profiles")
-            .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
-            .eq("role_id", roles.id).eq("is_deleted", false);
-        if (search) query = query.ilike("full_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchTeachersAction(page, search, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -114,20 +85,7 @@ export function useTeachers({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
 
 export function useStudents({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`students`, page, search].join('#');
-
-    const fetcher = async () => {
-        let query = supabase.from("students_data")
-            .select(`*, schools(school_name), classes(class_name)`, { count: "exact" })
-            .eq("is_deleted", false);
-        if (search) query = query.ilike("full_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchStudentsAction(page, search, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -147,20 +105,7 @@ export function useStudents({ page, search, itemsPerPage = ITEMS_PER_PAGE }: Use
 
 export function useClasses({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions) {
     const key = [`classes`, page, search].join('#');
-
-    const fetcher = async () => {
-        let query = supabase.from("classes")
-            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
-            .eq("is_deleted", false);
-        if (search) query = query.ilike("class_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchClassesAction(page, search, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -180,29 +125,7 @@ export function useClasses({ page, search, itemsPerPage = ITEMS_PER_PAGE }: UseP
 
 export function useStats() {
     const key = 'stats';
-
-    const fetcher = async () => {
-        const [schoolsResult, rolesResult, studentsResult, classesResult] = await Promise.all([
-            supabase.from("schools").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
-            supabase.from("roles").select("id, role_name"),
-            supabase.from("students_data").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
-            supabase.from("classes").select("*", { count: 'exact', head: true }).eq("is_deleted", false),
-        ]);
-
-        const teacherRoleId = rolesResult.data?.find(r => r.role_name === 'Teacher')?.id;
-        const teachersResult = await supabase
-            .from("profiles")
-            .select("*", { count: 'exact', head: true })
-            .eq("role_id", teacherRoleId || "")
-            .eq("is_deleted", false);
-
-        return {
-            schools: schoolsResult.count || 0,
-            students: studentsResult.count || 0,
-            teachers: teachersResult.count || 0,
-            classes: classesResult.count || 0,
-        };
-    };
+    const fetcher = async () => fetchStatsAction();
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -221,35 +144,7 @@ export function useStats() {
 
 export function useSchoolStats(schoolId: string | undefined) {
     const key = schoolId ? `school-stats-${schoolId}` : null;
-
-    const fetcher = async () => {
-        if (!schoolId) return { teachers: 0, students: 0, classes: 0 };
-
-        const { data: roles } = await supabase.from("roles").select("id, role_name");
-        const teacherRoleId = roles?.find(r => r.role_name === 'Teacher')?.id;
-
-        const [teachersResult, studentsResult, classesResult] = await Promise.all([
-            supabase.from("profiles")
-                .select("*", { count: 'exact', head: true })
-                .eq("school_id", schoolId)
-                .eq("role_id", teacherRoleId || "")
-                .eq("is_deleted", false),
-            supabase.from("students_data")
-                .select("*", { count: 'exact', head: true })
-                .eq("school_id", schoolId)
-                .eq("is_deleted", false),
-            supabase.from("classes")
-                .select("*", { count: 'exact', head: true })
-                .eq("school_id", schoolId)
-                .eq("is_deleted", false),
-        ]);
-
-        return {
-            teachers: teachersResult.count || 0,
-            students: studentsResult.count || 0,
-            classes: classesResult.count || 0,
-        };
-    };
+    const fetcher = async () => fetchSchoolStatsAction(schoolId);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher);
 
@@ -263,26 +158,7 @@ export function useSchoolStats(schoolId: string | undefined) {
 
 export function useAdminTeachers({ page, search, schoolId, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions & { schoolId: string }) {
     const key = [`admin-teachers`, page, search, schoolId].join('#');
-
-    const fetcher = async () => {
-        const { data: roles } = await supabase.from("roles").select("id").eq("role_name", "Teacher").single();
-        if (!roles) return { data: [], count: 0 };
-
-        let query = supabase.from("profiles")
-            .select(`*, schools(school_name), teachers_data(subject_specialization)`, { count: "exact" })
-            .eq("role_id", roles.id)
-            .eq("school_id", schoolId)
-            .eq("is_deleted", false);
-
-        if (search) query = query.ilike("full_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchAdminTeachersAction(page, search, schoolId, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -302,22 +178,7 @@ export function useAdminTeachers({ page, search, schoolId, itemsPerPage = ITEMS_
 
 export function useAdminStudents({ page, search, schoolId, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions & { schoolId: string }) {
     const key = [`admin-students`, page, search, schoolId].join('#');
-
-    const fetcher = async () => {
-        let query = supabase.from("students_data")
-            .select(`*, schools(school_name), classes(class_name)`, { count: "exact" })
-            .eq("school_id", schoolId)
-            .eq("is_deleted", false);
-
-        if (search) query = query.ilike("full_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchAdminStudentsAction(page, search, schoolId, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -337,22 +198,7 @@ export function useAdminStudents({ page, search, schoolId, itemsPerPage = ITEMS_
 
 export function useAdminClasses({ page, search, schoolId, itemsPerPage = ITEMS_PER_PAGE }: UsePaginationOptions & { schoolId: string }) {
     const key = [`admin-classes`, page, search, schoolId].join('#');
-
-    const fetcher = async () => {
-        let query = supabase.from("classes")
-            .select(`*, schools(school_name, address, phone, email), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
-            .eq("school_id", schoolId)
-            .eq("is_deleted", false);
-
-        if (search) query = query.ilike("class_name", `%${search}%`);
-
-        const from = (page - 1) * itemsPerPage;
-        const to = from + itemsPerPage - 1;
-
-        const { data, count, error } = await query.range(from, to).order("created_at", { ascending: false });
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchAdminClassesAction(page, search, schoolId, itemsPerPage);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,
@@ -370,33 +216,9 @@ export function useAdminClasses({ page, search, schoolId, itemsPerPage = ITEMS_P
     };
 }
 
-// Teacher-specific: fetch only the classes assigned via teachers_data.class_ids
 export function useTeacherClasses(teacherId: string | undefined) {
     const key = teacherId ? `teacher-classes-${teacherId}` : null;
-
-    const fetcher = async () => {
-        if (!teacherId) return { data: [], count: 0 };
-
-        // Get the teacher's assigned class IDs
-        const { data: teacherData, error: tErr } = await supabase
-            .from("teachers_data")
-            .select("class_ids")
-            .eq("id", teacherId)
-            .maybeSingle();
-
-        if (tErr) throw tErr;
-        const classIds: string[] = teacherData?.class_ids || [];
-        if (classIds.length === 0) return { data: [], count: 0 };
-
-        const { data, count, error } = await supabase
-            .from("classes")
-            .select(`*, schools(school_name), profiles!class_teacher_id(full_name), students_data(count)`, { count: "exact" })
-            .in("id", classIds)
-            .eq("is_deleted", false);
-
-        if (error) throw error;
-        return { data, count };
-    };
+    const fetcher = async () => fetchTeacherClassesAction(teacherId);
 
     const { data, error, isLoading, mutate } = useSWR(key, fetcher, {
         keepPreviousData: true,

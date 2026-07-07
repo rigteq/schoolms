@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { saveFullReportCardAction } from "@/app/actions/report-actions";
+import { fetchSchoolsAction } from "@/app/actions/data-actions";
+import { fetchStudentsForReportCardAction, fetchClassesForReportCardAction } from "@/app/actions/report-actions";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,11 +105,7 @@ export default function ReportCardForm({
 
                 // If no school selected yet and user is Superadmin, load schools for selection
                 if (!effectiveSchoolId && role === "Superadmin") {
-                    const { data: schoolsData } = await supabase
-                        .from("schools")
-                        .select("id, school_name")
-                        .eq("is_deleted", false)
-                        .order("school_name");
+                    const { data: schoolsData } = await fetchSchoolsAction(1, "", 1000);
                     setSchools(schoolsData || []);
                     setLoadingOptions(false);
                     return;
@@ -120,17 +118,9 @@ export default function ReportCardForm({
                 }
 
                 // Now load students and classes for the selected school
-                const [{ data: s }, { data: c }] = await Promise.all([
-                    supabase.from("students_data")
-                        .select("id, full_name, class_id, classes(class_name)")
-                        .eq("school_id", effectiveSchoolId)
-                        .eq("is_deleted", false)
-                        .order("full_name"),
-                    supabase.from("classes")
-                        .select("id, class_name, academic_year")
-                        .eq("school_id", effectiveSchoolId)
-                        .eq("is_deleted", false)
-                        .order("class_name"),
+                const [s, c] = await Promise.all([
+                    fetchStudentsForReportCardAction(effectiveSchoolId),
+                    fetchClassesForReportCardAction(effectiveSchoolId)
                 ]);
                 setStudents(s || []);
                 setClasses(c || []);
@@ -183,109 +173,10 @@ export default function ReportCardForm({
         try {
             let cardId = existingCard?.id;
 
-            if (isEdit && cardId) {
-                // Update existing
-                const { error } = await supabase
-                    .from("report_cards")
-                    .update({
-                        class_id: form.class_id || null,
-                        academic_year: form.academic_year,
-                        term: form.term,
-                        remarks: form.remarks,
-                        is_published: form.is_published,
-                        modified_at: new Date().toISOString(),
-                    })
-                    .eq("id", cardId);
-                if (error) throw error;
-
-                // Delete old subjects and re-insert
-                await supabase.from("report_card_subjects").delete().eq("report_card_id", cardId);
-            } else {
-                // Check if an active (non-deleted) report card already exists
-                const { data: activeCards, error: activeCheckError } = await supabase
-                    .from("report_cards")
-                    .select("id")
-                    .eq("student_id", form.student_id)
-                    .eq("academic_year", form.academic_year)
-                    .eq("term", form.term)
-                    .eq("is_deleted", false)
-                    .limit(1);
-
-                if (activeCheckError) throw activeCheckError;
-
-                if (activeCards && activeCards.length > 0) {
-                    toast.error("A report card already exists for this student in this term. Please edit the existing one instead.");
-                    setSaving(false);
-                    return;
-                }
-
-                // Check if a SOFT-DELETED record exists (unique constraint still applies)
-                const { data: deletedCards, error: deletedCheckError } = await supabase
-                    .from("report_cards")
-                    .select("id")
-                    .eq("student_id", form.student_id)
-                    .eq("academic_year", form.academic_year)
-                    .eq("term", form.term)
-                    .eq("is_deleted", true)
-                    .limit(1);
-
-                if (deletedCheckError) throw deletedCheckError;
-
-                if (deletedCards && deletedCards.length > 0) {
-                    // Restore the soft-deleted record instead of inserting a new one
-                    const restoreId = deletedCards[0].id;
-                    const { error: restoreError } = await supabase
-                        .from("report_cards")
-                        .update({
-                            is_deleted: false,
-                            school_id: effectiveSchoolId,
-                            class_id: form.class_id || null,
-                            academic_year: form.academic_year,
-                            term: form.term,
-                            remarks: form.remarks,
-                            created_by: profile?.id,
-                            is_published: form.is_published,
-                            modified_at: new Date().toISOString(),
-                        })
-                        .eq("id", restoreId);
-                    if (restoreError) throw restoreError;
-
-                    // Delete old subjects for the restored record
-                    await supabase.from("report_card_subjects").delete().eq("report_card_id", restoreId);
-                    cardId = restoreId;
-                } else {
-                    // Insert brand new record
-                    const { data, error } = await supabase
-                        .from("report_cards")
-                        .insert({
-                            student_id: form.student_id,
-                            school_id: effectiveSchoolId,
-                            class_id: form.class_id || null,
-                            academic_year: form.academic_year,
-                            term: form.term,
-                            remarks: form.remarks,
-                            created_by: profile?.id,
-                            is_published: form.is_published,
-                        })
-                        .select("id")
-                        .single();
-                    if (error) throw error;
-                    cardId = data.id;
-                }
-            }
-
-            // Insert subjects
-            const subjectRows = subjects.map((s) => ({
-                report_card_id: cardId,
-                subject_name: s.subject_name.trim(),
-                max_marks: Number(s.max_marks),
-                obtained_marks: s.obtained_marks !== "" ? Number(s.obtained_marks) : null,
-                grade: s.grade || null,
-                remarks: s.remarks || null,
-            }));
-
-            const { error: subjErr } = await supabase.from("report_card_subjects").insert(subjectRows);
-            if (subjErr) throw subjErr;
+            const payload = { ...form, school_id: effectiveSchoolId };
+            
+            const res = await saveFullReportCardAction(payload, subjects, profile?.id, isEdit, cardId);
+            cardId = res.cardId;
 
             toast.success(isEdit ? "Report card updated!" : "Report card created!");
             if (onSuccess && cardId) onSuccess(cardId);
